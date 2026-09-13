@@ -1,0 +1,19 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "top.aenp.msec.mixin.client",
+  "compatibilityLevel": "JAVA_21",
+  "client": [
+    "ClientLoginNetworkHandlerMixin",
+    "ClientPlayNetworkHandlerMixin",
+    "MinecraftClientMixin",
+    "PlayerListHudMixin",
+    "PlayerSkinTextureMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  },
+  "overwrites": {
+    "requireAnnotations": true
+  }
+}

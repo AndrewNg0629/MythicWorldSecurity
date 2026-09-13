@@ -1,0 +1,19 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "top.aenp.msec.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "ClientConnectionMixin",
+    "ServerLoginNetworkHandlerMixin",
+    "ServerPlayNetworkHandlerMixin",
+    "YggdrasilAuthenticationServiceMixin",
+    "YggdrasilMinecraftSessionServiceMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  },
+  "overwrites": {
+    "requireAnnotations": true
+  }
+}

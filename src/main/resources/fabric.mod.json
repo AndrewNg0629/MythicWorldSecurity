@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "id": "mythicworldsecurity",
+  "version": "${version}",
+  "name": "MythicWorldSecurity",
+  "description": "",
+  "authors": [],
+  "contact": {},
+  "license": "MIT",
+  "icon": "assets/mythicworldsecurity/icon.png",
+  "environment": "*",
+  "entrypoints": {
+    "client": [
+      "top.aenp.msec.MythicWorldSecurityClient"
+    ],
+    "main": [
+      "top.aenp.msec.MythicWorldSecurity"
+    ]
+  },
+  "mixins": [
+    "mythicworldsecurity.mixins.json",
+    {
+      "config": "mythicworldsecurity.client.mixins.json",
+      "environment": "client"
+    }
+  ],
+  "depends": {
+    "fabricloader": ">=${loader_version}",
+    "fabric-api": "*",
+    "minecraft": "${minecraft_version}",
+    "mythicworldlib": "*"
+  },
+  "custom": {
+    "modmenu": {
+      "update_checker": false
+    },
+    "loom:injected_interfaces": {
+      "net/minecraft/class_3248": [
+        "top/aenp/msec/network/interfaces/MSecServerLoginNetworkHandler"
+      ],
+      "net/minecraft/class_635": [
+        "top/aenp/msec/network/interfaces/MSecClientLoginNetworkHandler"
+      ],
+      "net/minecraft/class_3244": [
+        "top/aenp/msec/network/interfaces/MSecServerPlayNetworkHandler"
+      ],
+      "net/minecraft/class_634": [
+        "top/aenp/msec/network/interfaces/MSecClientPlayNetworkHandler"
+      ]
+    }
+  }
+}
