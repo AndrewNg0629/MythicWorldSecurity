@@ -12,7 +12,7 @@ public class ServerPlayNetworkHandlerMixin implements MSecServerPlayNetworkHandl
     @Override
     public void mythicworldsecurity$onTextureRequest(PlayTextureRequestC2SPayload payload) {
         if (!EnvironmentDetector.isPhyClient) {
-            ServerTextureService.INSTANCE.onRequest((ServerPlayNetworkHandler) (Object) this, payload);
+            ServerTextureService.getInstance().onRequest((ServerPlayNetworkHandler) (Object) this, payload);
         }
     }
 }

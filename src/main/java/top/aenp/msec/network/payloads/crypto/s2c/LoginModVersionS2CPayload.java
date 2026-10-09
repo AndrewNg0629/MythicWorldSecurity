@@ -3,6 +3,7 @@ package top.aenp.msec.network.payloads.crypto.s2c;
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.network.codec.PacketCodec;
 import net.minecraft.util.Identifier;
+import top.aenp.msec.network.interfaces.MSecClientLoginNetworkHandler;
 import top.aenp.msec.network.interfaces.SignedPayload;
 import top.aenp.mwl.network.v2.interfaces.MythicClientLoginNetworkHandler;
 import top.aenp.mwl.network.v2.payloads.interfaces.MythicLoginS2CPayload;
@@ -34,7 +35,7 @@ public record LoginModVersionS2CPayload(String serverModVersion, int serverProto
 
     @Override
     public void handle(MythicClientLoginNetworkHandler handler) {
-
+        ((MSecClientLoginNetworkHandler) handler).mythicworldsecurity$getMSecHandshakeHandler().onModVersion(this);
     }
 
     @Override

@@ -1,6 +1,6 @@
 package top.aenp.msec.network.interfaces;
 
-import top.aenp.msec.network.MSecLoginHandshakeHandler;
+import com.mojang.authlib.GameProfile;
 import top.aenp.msec.network.payloads.texture.LoginTextureDataC2SPayload;
 import top.aenp.msec.network.payloads.texture.LoginTextureMetadataC2SPayload;
 import top.aenp.mwl.network.v2.interfaces.MythicServerLoginNetworkHandler;
@@ -9,13 +9,20 @@ public interface MSecServerLoginNetworkHandler extends MythicServerLoginNetworkH
     default void mythicworldsecurity$onTextureMetadata(LoginTextureMetadataC2SPayload payload) {
         throw new RuntimeException();
     }
+
     default void mythicworldsecurity$onTextureData(LoginTextureDataC2SPayload payload) {
         throw new RuntimeException();
     }
+
     default void mythicworldsecurity$textureFileWriteCallback(LoginTextureDataC2SPayload.TextureType type, boolean successful, String hash) {
         throw new RuntimeException();
     }
-    default MSecLoginHandshakeHandler mythicworldsecurity$getMSecHandshakeHandler() {
+
+    default MSecServerLoginHandshakeHandler mythicworldsecurity$getMSecHandshakeHandler() {
+        throw new RuntimeException();
+    }
+
+    default void mythicworldsecurity$startVerify(GameProfile profile) {
         throw new RuntimeException();
     }
 }

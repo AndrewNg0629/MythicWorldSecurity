@@ -8,6 +8,7 @@ import com.mojang.authlib.yggdrasil.ProfileResult;
 import com.mojang.authlib.yggdrasil.response.HasJoinedMinecraftServerResponse;
 import com.mojang.authlib.yggdrasil.response.ProfileAction;
 import com.mojang.util.UUIDTypeAdapter;
+import top.aenp.msec.Utils;
 
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -19,12 +20,6 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 public interface AuthSource {
-     Gson GSON = new GsonBuilder()
-            .registerTypeAdapter(GameProfile.class, new GameProfile.Serializer())
-            .registerTypeAdapter(UUID.class, new UUIDTypeAdapter())
-            .registerTypeAdapter(PropertyMap.class, new PropertyMap.Serializer())
-            .create();
-
     UUID getUUIDByName(String name) throws IOException;
     String getNameByUUID(UUID uuid) throws IOException;
     ProfileResult checkJoined(String name, String apiNonce, InetAddress clientAddress) throws IOException;
@@ -49,7 +44,7 @@ public interface AuthSource {
             if (connection.getResponseCode() == 200) {
                 try(InputStreamReader reader = new InputStreamReader(connection.getInputStream())) {
                     JsonElement jsonElement = JsonParser.parseReader(reader);
-                    HasJoinedMinecraftServerResponse response = AuthSource.GSON.fromJson(jsonElement, HasJoinedMinecraftServerResponse.class);
+                    HasJoinedMinecraftServerResponse response = Utils.GSON.fromJson(jsonElement, HasJoinedMinecraftServerResponse.class);
                     if (response != null && response.id() != null) {
                         GameProfile profile = new GameProfile(response.id(), name);
                         if (response.properties() != null) {

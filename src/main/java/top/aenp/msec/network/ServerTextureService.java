@@ -19,26 +19,26 @@ import java.util.HashMap;
 import java.util.concurrent.LinkedBlockingDeque;
 
 public class ServerTextureService {
-    public static final ServerTextureService INSTANCE = new ServerTextureService();
+    private static ServerTextureService INSTANCE = null;
     private final LinkedBlockingDeque<RequestEntry> requestQueue = new LinkedBlockingDeque<>();
     private final LinkedBlockingDeque<SubmissionEntry> submissionQueue = new LinkedBlockingDeque<>();
     private final HashMap<String, CacheEntry> inMemoryCache = new HashMap<>();
-    private static final Path cacheDirPath;
-
+    private final Path cacheDirPath = MythicWorldSecurity.MAIN_DIR.resolve("texture_caches").normalize();
     private final Object lock = new Object();
 
-    static {
-        try {
-            Path cacheDirPath0 = Path.of(System.getProperty("user.dir"), "/msec/texture_caches").normalize();
-            if (!Files.exists(cacheDirPath0)) {
-                Files.createDirectories(cacheDirPath0);
-            }
-            if (!Files.isDirectory(cacheDirPath0)) {
-                throw new IOException("Texture cache dir should be a directory!");
-            }
-            cacheDirPath = cacheDirPath0.toRealPath();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+    public static ServerTextureService getInstance() {
+        if (INSTANCE != null) {
+            return INSTANCE;
+        } else {
+            throw new IllegalStateException("Server texture service has not been initialized!");
+        }
+    }
+
+    public static void init() {
+        if (INSTANCE == null) {
+            INSTANCE = new ServerTextureService();
+        } else {
+            throw new IllegalStateException("Server texture service has already been initialized!");
         }
     }
 
@@ -71,7 +71,7 @@ public class ServerTextureService {
         submissionQueue.add(new SubmissionEntry(handler, payload));
     }
 
-    public static Path getCacheFilePathSafely(String hash) {
+    public Path getCacheFilePathSafely(String hash) {
         if (hash == null) {
             return null;
         }
@@ -105,7 +105,7 @@ public class ServerTextureService {
                 return new PlayTextureResponseS2CPayload(hash, cacheEntry.get());
             } else {
                 try {
-                    Path cacheFilePath = getCacheFilePathSafely(hash);
+                    Path cacheFilePath = getCacheFilePathSafely(hash + ".png");
                     if (cacheFilePath == null) {
                         return new PlayTextureResponseS2CPayload(hash, null);
                     }
@@ -130,8 +130,8 @@ public class ServerTextureService {
                 return;
             }
             BufferedImage bufferedImage = Utils.decompressTexture(payload.data(), payload.width(), payload.height(), 64, 64);
-            byte[] texturePng = Utils.encodeBufferedImage(bufferedImage);
-            String hash = Utils.hashBytes1(texturePng);
+            byte[] texturePngBytes = Utils.encodeBufferedImage(bufferedImage);
+            String hash = Utils.hashBytes1(texturePngBytes);
             boolean sizeValid = switch (payload.type()) {
                 case SKIN -> bufferedImage.getWidth() == 64 && bufferedImage.getHeight() == 64;
                 case CAPE -> bufferedImage.getWidth() == 64 && bufferedImage.getHeight() == 32;
@@ -141,9 +141,10 @@ public class ServerTextureService {
                 entry.handler.mythicworldsecurity$textureFileWriteCallback(payload.type(), false, null);
                 return;
             }
-            Path cacheFilePath = cacheDirPath.resolve(hash);
+            Path cacheFilePath = cacheDirPath.resolve(hash + ".png");
+            createTextureDirIfAbsent();
             try (OutputStream outputStream = Files.newOutputStream(cacheFilePath)) {
-                outputStream.write(texturePng);
+                outputStream.write(texturePngBytes);
                 entry.handler.mythicworldsecurity$textureFileWriteCallback(payload.type(), true, hash);
             }
         } catch (Exception e) {
@@ -152,8 +153,22 @@ public class ServerTextureService {
         }
     }
 
+    private void createTextureDirIfAbsent() throws IOException {
+        if (!Files.exists(cacheDirPath)) {
+            Files.createDirectories(cacheDirPath);
+        }
+        if (!Files.isDirectory(cacheDirPath)) {
+            throw new IOException("Texture cache dir should be a directory!");
+        }
+    }
+
     @SuppressWarnings("BusyWait")
     private ServerTextureService() {
+        try {
+            createTextureDirIfAbsent();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
         Runnable distributionTask = () -> {
             while (!Thread.currentThread().isInterrupted()) {
                 try {

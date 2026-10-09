@@ -7,4 +7,8 @@ public interface MSecClientLoginNetworkHandler extends MythicClientLoginNetworkH
     default void mythicworldsecurity$onTextureCommand(LoginTextureCommandS2CPayload payload) {
         throw new RuntimeException();
     }
+
+    default MSecClientLoginHandshakeHandler mythicworldsecurity$getMSecHandshakeHandler() {
+        throw new RuntimeException();
+    }
 }

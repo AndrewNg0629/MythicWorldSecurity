@@ -24,13 +24,6 @@ public class MSecEd25519Identity {
     static {
         try {
             KEY_FACTORY = KeyFactory.getInstance("Ed25519");
-        } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    static {
-        try {
             MESSAGE_DIGEST_SHA_256 = MessageDigest.getInstance("SHA-256");
         } catch (NoSuchAlgorithmException e) {
             throw new RuntimeException(e);
@@ -43,7 +36,7 @@ public class MSecEd25519Identity {
 
     private MSecEd25519Identity() {
         try {
-            Path keypairDirPath = Path.of(System.getProperty("user.dir"), "msec", (EnvironmentDetector.isPhyClient ? "identity-client" : "identity-server")).normalize();
+            Path keypairDirPath = MythicWorldSecurity.MAIN_DIR.resolve(EnvironmentDetector.isPhyClient ? "identity-client" : "identity-server").normalize();
             if (!Files.exists(keypairDirPath)) {
                 Files.createDirectories(keypairDirPath);
             }
@@ -63,8 +56,8 @@ public class MSecEd25519Identity {
                     byte[] encodedPublicKeyBytes = Base64.getDecoder().decode(publicKeyInputStream.readAllBytes());
                     byte[] encodedPrivateKeyBytes = Base64.getDecoder().decode(privateKeyInputStream.readAllBytes());
                     try {
-                        publicKey = decodePublicKey(encodedPublicKeyBytes);
-                        privateKey = decodePrivateKey(encodedPrivateKeyBytes);
+                        publicKey = decodeEd25519PublicKey(encodedPublicKeyBytes);
+                        privateKey = decodeEd25519PrivateKey(encodedPrivateKeyBytes);
                         byte[] testData = "MythicWorldSecurity".getBytes(StandardCharsets.UTF_8);
                         Signature signer = Signature.getInstance("Ed25519");
                         signer.initSign(privateKey);
@@ -98,14 +91,14 @@ public class MSecEd25519Identity {
             } else {
                 throw new RuntimeException("Only half of the keypair is found! Either find another half or regenerate!");
             }
-            sha256Fingerprint = hashPublicKey(publicKey);
+            sha256Fingerprint = hashEd25519PublicKey(publicKey);
             MythicWorldSecurity.LOGGER.info("The SHA-256 fingerprint of this minecraft {} is {}", EnvironmentDetector.isPhyClient ? "client" : "server", sha256Fingerprint);
         } catch (IOException | NoSuchAlgorithmException e) {
             throw new RuntimeException("Failed to initialize keypair.", e);
         }
     }
 
-    public static String hashPublicKey(PublicKey publicKey) {
+    public static String hashEd25519PublicKey(PublicKey publicKey) {
         MESSAGE_DIGEST_SHA_256.update(publicKey.getEncoded(), 12, 32);
         return new BigInteger(1, MESSAGE_DIGEST_SHA_256.digest()).toString(16);
     }
@@ -126,7 +119,7 @@ public class MSecEd25519Identity {
         }
     }
 
-    public static PublicKey decodePublicKey(byte[] encodedPublicKey) {
+    public static PublicKey decodeEd25519PublicKey(byte[] encodedPublicKey) {
         try {
             return KEY_FACTORY.generatePublic(new X509EncodedKeySpec(encodedPublicKey));
         } catch (InvalidKeySpecException e) {
@@ -134,7 +127,7 @@ public class MSecEd25519Identity {
         }
     }
 
-    public static PrivateKey decodePrivateKey(byte[] encodedPrivateKey) {
+    private static PrivateKey decodeEd25519PrivateKey(byte[] encodedPrivateKey) {
         try {
             return KEY_FACTORY.generatePrivate(new PKCS8EncodedKeySpec(encodedPrivateKey));
         } catch (InvalidKeySpecException e) {

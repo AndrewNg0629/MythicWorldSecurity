@@ -12,6 +12,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import top.aenp.msec.MythicWorldSecurity;
+import top.aenp.msec.network.MSecNetwork;
 import top.aenp.msec.network.client.ClientTextureService;
 import top.aenp.msec.Utils;
 import top.aenp.msec.network.payloads.texture.PlayTextureResponseS2CPayload;
@@ -40,10 +41,10 @@ public abstract class PlayerSkinTextureMixin {
     @WrapOperation(method = "load", at = @At(value = "INVOKE", target = "Ljava/util/concurrent/CompletableFuture;runAsync(Ljava/lang/Runnable;Ljava/util/concurrent/Executor;)Ljava/util/concurrent/CompletableFuture;"))
     private CompletableFuture<Void> wrapDownloadAction(Runnable runnable, Executor executor, Operation<CompletableFuture<Void>> original) {
         ClientPlayerEntity playerEntity = MinecraftClient.getInstance().player;
-        if (playerEntity != null && url.startsWith("https://example.com/msecofflinetextures/")) {
+        if (playerEntity != null && url.startsWith(MSecNetwork.TEXTURE_DUMMY_URL_PREFIX)) {
             return CompletableFuture.runAsync(() -> {
-                String hash = url.substring(40);
-                CompletableFuture<PlayTextureResponseS2CPayload> future = ClientTextureService.INSTANCE.requestTexture(playerEntity.networkHandler, hash);
+                String hash = url.substring(MSecNetwork.TEXTURE_DUMMY_URL_PREFIX.length());
+                CompletableFuture<PlayTextureResponseS2CPayload> future = ClientTextureService.getInstance().requestTexture(playerEntity.networkHandler, hash);
                 PlayTextureResponseS2CPayload payload = future.join();
                 if (payload.data() != null) {
                     byte[] textureData = payload.data();

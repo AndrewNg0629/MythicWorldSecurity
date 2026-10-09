@@ -5,6 +5,7 @@ import net.minecraft.network.ClientConnection;
 import net.minecraft.network.packet.c2s.login.LoginHelloC2SPacket;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerLoginNetworkHandler;
+import net.minecraft.text.Text;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -12,10 +13,13 @@ import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import top.aenp.msec.network.MSecLoginHandshakeHandler;
+import top.aenp.msec.network.MSecServerLoginHandshakeHandlerImpl;
+import top.aenp.msec.network.ServerTextureService;
+import top.aenp.msec.network.interfaces.MSecServerLoginHandshakeHandler;
 import top.aenp.msec.network.interfaces.MSecServerLoginNetworkHandler;
 import top.aenp.msec.network.payloads.texture.LoginTextureDataC2SPayload;
 import top.aenp.msec.network.payloads.texture.LoginTextureMetadataC2SPayload;
+import top.aenp.mwl.misc.EnvironmentDetector;
 
 @Mixin(ServerLoginNetworkHandler.class)
 public abstract class ServerLoginNetworkHandlerMixin implements MSecServerLoginNetworkHandler {
@@ -32,8 +36,11 @@ public abstract class ServerLoginNetworkHandlerMixin implements MSecServerLoginN
     @Shadow
     String profileName;
 
+    @Shadow
+    public abstract void disconnect(Text reason);
+
     @Unique
-    private final MSecLoginHandshakeHandler msecHandshakeHandler = new MSecLoginHandshakeHandler(connection, (ServerLoginNetworkHandler) (Object) this);
+    private MSecServerLoginHandshakeHandler mSecServerLoginHandshakeHandler = null;
 //    @Unique
 //    private boolean testSent = false;
 //    @Unique
@@ -41,60 +48,18 @@ public abstract class ServerLoginNetworkHandlerMixin implements MSecServerLoginN
 //    @Unique
 //    private long ts = 0L;
 
-//    @Inject(method = "startVerify", at = @At(value = "HEAD"))
-//    private void rewriteProfile(GameProfile profile, CallbackInfo info) {
-//        if(!EnvironmentDetector.isPhyClient) {
-//            HashMap<MinecraftProfileTexture.Type, MinecraftProfileTexture> textures = new HashMap<>();
-//            MinecraftProfileTexture skinTexture = new MinecraftProfileTexture("https://example.com/msecofflinetextures/6e8c08bdc69709032d6cf708efba03989eb32e58", null);
-//            MinecraftProfileTexture capeTexture = new MinecraftProfileTexture("https://example.com/msecofflinetextures/cb2b84510e457c3f746f55fae6f7cbadf52c40e2", null);
-//            textures.put(MinecraftProfileTexture.Type.SKIN, skinTexture);
-//            textures.put(MinecraftProfileTexture.Type.CAPE, capeTexture);
-//            MinecraftTexturesPayload payload = new MinecraftTexturesPayload(
-//                    System.currentTimeMillis(),
-//                    profile.getId(),
-//                    profile.getName(),
-//                    false,
-//                    textures
-//            );
-//            String rewrittenPayload = Utils.PROP_GSON.toJson(payload);
-//            String encodedRewrittenPayload = Base64.getEncoder().encodeToString(rewrittenPayload.getBytes(StandardCharsets.UTF_8));
-//            profile.getProperties().removeAll("textures");
-//            profile.getProperties().put("textures", new Property("textures", encodedRewrittenPayload));
-//        }
-//    }
+    @Inject(method = "<init>", at = @At(value = "RETURN"))
+    private void init(MinecraftServer server, ClientConnection connection, boolean transferred, CallbackInfo info) {
+        mSecServerLoginHandshakeHandler = new MSecServerLoginHandshakeHandlerImpl(connection, (ServerLoginNetworkHandler) (Object) this);
+    }
 
     @Inject(method = "onHello", at = @At(value = "INVOKE", target = "Lnet/minecraft/server/MinecraftServer;isOnlineMode()Z"), cancellable = true)
     private void interceptHello(LoginHelloC2SPacket packet, CallbackInfo info) {
-//        if (server.isOnlineMode() && !this.connection.isLocal()) {
-//            GameProfile gameProfile = new GameProfile(Uuids.getOfflinePlayerUuid(profileName), profileName + "_test");
-//            HashMap<MinecraftProfileTexture.Type, MinecraftProfileTexture> textures = new HashMap<>();
-//            MinecraftProfileTexture skinTexture = new MinecraftProfileTexture("https://example.com/msecofflinetextures/49d53d3894c4bf776518b384ced33f56e1d78a19", null);
-//            MinecraftProfileTexture capeTexture = new MinecraftProfileTexture("https://example.com/msecofflinetextures/ed1cb191817b61be89acebd65e94a98d651119b8", null);
-//            textures.put(MinecraftProfileTexture.Type.SKIN, skinTexture);
-//            textures.put(MinecraftProfileTexture.Type.CAPE, capeTexture);
-//            MinecraftTexturesPayload payload = new MinecraftTexturesPayload(
-//                    System.currentTimeMillis(),
-//                    gameProfile.getId(),
-//                    gameProfile.getName(),
-//                    false,
-//                    textures
-//            );
-//            String rewrittenPayload = Utils.PROP_GSON.toJson(payload);
-//            String encodedRewrittenPayload = Base64.getEncoder().encodeToString(rewrittenPayload.getBytes(StandardCharsets.UTF_8));
-//            gameProfile.getProperties().put("textures", new Property("textures", encodedRewrittenPayload));
-//            startVerify(gameProfile);
-//        } else {
-//            startVerify(Uuids.getOfflinePlayerProfile(this.profileName));
-//        }
-        msecHandshakeHandler.onVanillaHello(packet);
-        info.cancel();
+        if (!EnvironmentDetector.isPhyClient) {
+            mSecServerLoginHandshakeHandler.onVanillaHello(packet);
+            info.cancel();
+        }
     }
-
-//    @Inject(method = "onHello", at = @At(value = "HEAD"))
-//    private void onHello(LoginHelloC2SPacket packet, CallbackInfo info) {
-//
-//    }
-
 
 //    @Inject(method = "tick", at = @At(value = "HEAD"))
 //    private void tick(CallbackInfo info) {
@@ -124,7 +89,7 @@ public abstract class ServerLoginNetworkHandlerMixin implements MSecServerLoginN
 
     @Override
     public void mythicworldsecurity$onTextureData(LoginTextureDataC2SPayload payload) {
-//        ServerTextureService.INSTANCE.onSubmission((ServerLoginNetworkHandler) (Object) this, payload);
+        ServerTextureService.getInstance().onSubmission((ServerLoginNetworkHandler) (Object) this, payload);
     }
 
     @Override
@@ -136,7 +101,12 @@ public abstract class ServerLoginNetworkHandlerMixin implements MSecServerLoginN
     }
 
     @Override
-    public MSecLoginHandshakeHandler mythicworldsecurity$getMSecHandshakeHandler() {
-        return msecHandshakeHandler;
+    public MSecServerLoginHandshakeHandler mythicworldsecurity$getMSecHandshakeHandler() {
+        return mSecServerLoginHandshakeHandler;
+    }
+
+    @Override
+    public void mythicworldsecurity$startVerify(GameProfile profile) {
+        startVerify(profile);
     }
 }

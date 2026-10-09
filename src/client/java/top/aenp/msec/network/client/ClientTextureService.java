@@ -37,10 +37,10 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingDeque;
 
 public class ClientTextureService {
-    public static final ClientTextureService INSTANCE = new ClientTextureService();
-    private final HashMap<String, ClientTextureRequestEntry> requests = new HashMap<>();
-    private final LinkedBlockingDeque<PlayTextureResponseS2CPayload> requestQueue = new LinkedBlockingDeque<>();
-    private final LinkedBlockingDeque<TextureCommandEntry> commandQueue = new LinkedBlockingDeque<>();
+    private static ClientTextureService INSTANCE = null;
+    private final HashMap<String, ClientTextureRequestEntry> textureRequests = new HashMap<>();
+    private final LinkedBlockingDeque<PlayTextureResponseS2CPayload> textureResponseQueue = new LinkedBlockingDeque<>();
+    private final LinkedBlockingDeque<TextureCommandEntry> textureCommandQueue = new LinkedBlockingDeque<>();
     private LocalTextureCache localTextureCache = null;
     private final Object lock = new Object();
 
@@ -55,6 +55,7 @@ public class ClientTextureService {
         connection.setDoInput(true);
         connection.setDoOutput(false);
         connection.connect();
+        connection = Utils.followHttpRedirects(connection, MinecraftClient.getInstance().getNetworkProxy());
         int responseCode = connection.getResponseCode();
         if (responseCode >= 200 && responseCode < 400) {
             try (InputStream inputStream = connection.getInputStream()) {
@@ -62,6 +63,22 @@ public class ClientTextureService {
             }
         } else {
             throw new IOException(String.format("Failed to fetch %s", url));
+        }
+    }
+
+    public static ClientTextureService getInstance() {
+        if (INSTANCE != null) {
+            return INSTANCE;
+        } else {
+            throw new IllegalStateException("Client texture service has not been initialized!");
+        }
+    }
+
+    public static void init() {
+        if (INSTANCE == null) {
+            INSTANCE = new ClientTextureService();
+        } else {
+            throw new IllegalStateException("Client texture service has already been initialized!");
         }
     }
 
@@ -76,12 +93,12 @@ public class ClientTextureService {
 
     public CompletableFuture<PlayTextureResponseS2CPayload> requestTexture(ClientPlayNetworkHandler handler, String hash) {
         synchronized (lock) {
-            ClientTextureRequestEntry existingEntry = requests.get(hash);
+            ClientTextureRequestEntry existingEntry = textureRequests.get(hash);
             if (existingEntry != null) {
                 return existingEntry.future;
             } else {
                 CompletableFuture<PlayTextureResponseS2CPayload> future = new CompletableFuture<>();
-                requests.put(hash, new ClientTextureRequestEntry(future, System.currentTimeMillis()));
+                textureRequests.put(hash, new ClientTextureRequestEntry(future, System.currentTimeMillis()));
                 handler.getConnection().send(new CustomPayloadC2SPacket(new PlayTextureRequestC2SPayload(hash)));
                 return future;
             }
@@ -96,7 +113,7 @@ public class ClientTextureService {
                 GameProfile profile = client.getGameProfile();
                 Property textureProperty = Iterables.getFirst(profile.getProperties().get("textures"), null);
                 if (textureProperty != null) {
-                    MinecraftTexturesPayload payload = Utils.PROP_GSON.fromJson(new String(Base64.getDecoder().decode(textureProperty.value()), StandardCharsets.UTF_8), MinecraftTexturesPayload.class);
+                    MinecraftTexturesPayload payload = Utils.GSON.fromJson(new String(Base64.getDecoder().decode(textureProperty.value()), StandardCharsets.UTF_8), MinecraftTexturesPayload.class);
                     Map<MinecraftProfileTexture.Type, MinecraftProfileTexture> textures = payload.textures();
                     MinecraftProfileTexture skinProfileTexture = textures.get(MinecraftProfileTexture.Type.SKIN);
                     boolean slim = false;
@@ -122,22 +139,22 @@ public class ClientTextureService {
     }
 
     public void onTextureResponse(PlayTextureResponseS2CPayload payload) {
-        requestQueue.add(payload);
+        textureResponseQueue.add(payload);
     }
 
     public void onTextureCommand(LoginTextureCommandS2CPayload payload, ClientConnection connection) {
-        commandQueue.add(new TextureCommandEntry(payload.command(), connection));
+        textureCommandQueue.add(new TextureCommandEntry(payload.command(), connection));
     }
 
     @SuppressWarnings("BusyWait")
     private ClientTextureService() {
-        Runnable receivingTask = () -> {
+        Runnable receptionTask = () -> {
             while (!Thread.currentThread().isInterrupted()) {
                 try {
-                    PlayTextureResponseS2CPayload payload = requestQueue.take();
+                    PlayTextureResponseS2CPayload payload = textureResponseQueue.take();
                     synchronized (lock) {
                         String hash = payload.hash();
-                        ClientTextureRequestEntry entry = requests.get(hash);
+                        ClientTextureRequestEntry entry = textureRequests.get(hash);
                         if (entry != null) {
                             entry.future.complete(payload);
                         }
@@ -152,7 +169,7 @@ public class ClientTextureService {
         Runnable commandExecTask = () -> {
             while (!Thread.currentThread().isInterrupted()) {
                 try {
-                    TextureCommandEntry entry = commandQueue.take();
+                    TextureCommandEntry entry = textureCommandQueue.take();
                     try {
                         cacheLocalTexturesIfAbsent();
                         switch (entry.command) {
@@ -205,7 +222,7 @@ public class ClientTextureService {
             while (!Thread.currentThread().isInterrupted()) {
                 try {
                     synchronized (lock) {
-                        Iterator<Map.Entry<String, ClientTextureRequestEntry>> iterator = requests.entrySet().iterator();
+                        Iterator<Map.Entry<String, ClientTextureRequestEntry>> iterator = textureRequests.entrySet().iterator();
                         while (iterator.hasNext()) {
                             Map.Entry<String, ClientTextureRequestEntry> entry = iterator.next();
                             if (entry.getValue().requestedOn + 30000 <= System.currentTimeMillis()) {
@@ -222,7 +239,7 @@ public class ClientTextureService {
                 }
             }
         };
-        Thread.startVirtualThread(receivingTask).setName("MSec Texture Receiver");
+        Thread.startVirtualThread(receptionTask).setName("MSec Texture Receiver");
         Thread.startVirtualThread(commandExecTask).setName("MSec Server Texture Command Executor");
         Thread.startVirtualThread(cleaner).setName("MSec Zombie Requests Cleaner");
     }

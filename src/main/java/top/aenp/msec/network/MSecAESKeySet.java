@@ -3,7 +3,6 @@ package top.aenp.msec.network;
 import javax.crypto.Mac;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
-import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 
 public class MSecAESKeySet {

@@ -18,7 +18,7 @@ public record LoginIdentityC2SPayload(PublicKey clientPublicKey) implements Myth
         @Override
         public LoginIdentityC2SPayload decode(PacketByteBuf buf) {
             byte[] encodedClientPublicKey = buf.readByteArray(44);
-            PublicKey clientPublicKey = MSecEd25519Identity.decodePublicKey(encodedClientPublicKey);
+            PublicKey clientPublicKey = MSecEd25519Identity.decodeEd25519PublicKey(encodedClientPublicKey);
             return new LoginIdentityC2SPayload(clientPublicKey);
         }
 

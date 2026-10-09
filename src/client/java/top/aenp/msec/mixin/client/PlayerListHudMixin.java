@@ -10,7 +10,7 @@ import org.spongepowered.asm.mixin.injection.At;
 @Mixin(PlayerListHud.class)
 public class PlayerListHudMixin {
     @WrapOperation(method = "render", at = @At(value = "INVOKE", target = "Lnet/minecraft/network/ClientConnection;isEncrypted()Z"))
-    private boolean alwaysEncrypted(ClientConnection instance, Operation<Boolean> original) {
+    private boolean alwaysDisplay(ClientConnection instance, Operation<Boolean> original) {
         return true;
     }
 }

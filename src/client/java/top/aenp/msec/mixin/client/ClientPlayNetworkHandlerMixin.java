@@ -27,6 +27,6 @@ public abstract class ClientPlayNetworkHandlerMixin implements MSecClientPlayNet
 
     @Override
     public void mythicworldsecurity$onTextureResponse(PlayTextureResponseS2CPayload payload) {
-        ClientTextureService.INSTANCE.onTextureResponse(payload);
+        ClientTextureService.getInstance().onTextureResponse(payload);
     }
 }

@@ -1,5 +1,6 @@
 package top.aenp.msec.network;
 
+import top.aenp.msec.Utils;
 import top.aenp.msec.network.payloads.crypto.c2s.LoginIdentityC2SPayload;
 import top.aenp.msec.network.payloads.crypto.c2s.LoginModVersionC2SPayload;
 import top.aenp.msec.network.payloads.crypto.c2s.LoginSignatureC2SPayload;
@@ -11,7 +12,25 @@ import top.aenp.msec.network.payloads.crypto.s2c.LoginX25519S2CPayload;
 import top.aenp.msec.network.payloads.texture.*;
 import top.aenp.mwl.network.v2.MythicNetwork;
 
+import java.security.KeyFactory;
+import java.security.NoSuchAlgorithmException;
+import java.security.PublicKey;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.X509EncodedKeySpec;
+
 public class MSecNetwork {
+    private static final KeyFactory X25519_KEY_FACTORY;
+    public static final String MSEC_DUMMY_DOMAIN = "msec-placeholder-domain.invalid";
+    public static final String TEXTURE_DUMMY_URL_PREFIX = "https://" + MSEC_DUMMY_DOMAIN + "/offline-player-texture/";
+
+    static {
+        try {
+            X25519_KEY_FACTORY = KeyFactory.getInstance("X25519");
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     public static final int PROTOCOL_VERSION = 0;
     private static boolean initialized = false;
     public static void init() {
@@ -32,6 +51,14 @@ public class MSecNetwork {
             initialized = true;
         } else {
             throw new IllegalStateException("MSecNetwork has already been initialized!");
+        }
+    }
+
+    public static PublicKey decodeX25519PublicKey(byte[] encodedPublicKey) {
+        try {
+            return X25519_KEY_FACTORY.generatePublic(new X509EncodedKeySpec(encodedPublicKey));
+        } catch (InvalidKeySpecException e) {
+            throw new RuntimeException("Broken X25519 public key.", e);
         }
     }
 }

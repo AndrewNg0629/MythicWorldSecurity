@@ -3,7 +3,7 @@ package top.aenp.msec.network.payloads.crypto.c2s;
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.network.codec.PacketCodec;
 import net.minecraft.util.Identifier;
-import top.aenp.msec.auth.MSecEd25519Identity;
+import top.aenp.msec.network.MSecNetwork;
 import top.aenp.msec.network.interfaces.MSecServerLoginNetworkHandler;
 import top.aenp.msec.network.interfaces.SignedPayload;
 import top.aenp.mwl.network.v2.interfaces.MythicServerLoginNetworkHandler;
@@ -18,7 +18,7 @@ public record LoginX25519C2SPayload(PublicKey clientX25519PublicKey) implements 
         @Override
         public LoginX25519C2SPayload decode(PacketByteBuf buf) {
             byte[] encodedClientX25519PublicKey = buf.readByteArray(44);
-            PublicKey clientX25519PublicKey = MSecEd25519Identity.decodePublicKey(encodedClientX25519PublicKey);
+            PublicKey clientX25519PublicKey = MSecNetwork.decodeX25519PublicKey(encodedClientX25519PublicKey);
             return new LoginX25519C2SPayload(clientX25519PublicKey);
         }
 

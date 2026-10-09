@@ -3,7 +3,8 @@ package top.aenp.msec.network.payloads.crypto.s2c;
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.network.codec.PacketCodec;
 import net.minecraft.util.Identifier;
-import top.aenp.msec.auth.MSecEd25519Identity;
+import top.aenp.msec.network.MSecNetwork;
+import top.aenp.msec.network.interfaces.MSecClientLoginNetworkHandler;
 import top.aenp.msec.network.interfaces.SignedPayload;
 import top.aenp.mwl.network.v2.interfaces.MythicClientLoginNetworkHandler;
 import top.aenp.mwl.network.v2.payloads.interfaces.MythicLoginS2CPayload;
@@ -17,7 +18,7 @@ public record LoginX25519S2CPayload(PublicKey serverX25519PublicKey, byte[] KDSa
         @Override
         public LoginX25519S2CPayload decode(PacketByteBuf buf) {
             byte[] encodedServerX25519PublicKey = buf.readByteArray(44);
-            PublicKey serverX25519PublicKey = MSecEd25519Identity.decodePublicKey(encodedServerX25519PublicKey);
+            PublicKey serverX25519PublicKey = MSecNetwork.decodeX25519PublicKey(encodedServerX25519PublicKey);
             byte[] KDSalt = buf.readByteArray(32);
             return new LoginX25519S2CPayload(serverX25519PublicKey, KDSalt);
         }
@@ -37,7 +38,7 @@ public record LoginX25519S2CPayload(PublicKey serverX25519PublicKey, byte[] KDSa
 
     @Override
     public void handle(MythicClientLoginNetworkHandler handler) {
-
+        ((MSecClientLoginNetworkHandler) handler).mythicworldsecurity$getMSecHandshakeHandler().onServerX25519(this);
     }
 
     @Override

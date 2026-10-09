@@ -1,16 +1,15 @@
 package top.aenp.msec;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
+import com.google.gson.*;
+import com.mojang.authlib.GameProfile;
+import com.mojang.authlib.properties.PropertyMap;
 import com.mojang.util.UUIDTypeAdapter;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.*;
 import java.math.BigInteger;
-import java.net.IDN;
-import java.net.URI;
-import java.net.URISyntaxException;
+import java.net.*;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
@@ -22,7 +21,11 @@ import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
 
 public class Utils {
-    public static final Gson PROP_GSON = new GsonBuilder().registerTypeAdapter(UUID.class, new UUIDTypeAdapter()).create();
+    public static final Gson GSON = new GsonBuilder()
+            .registerTypeAdapter(GameProfile.class, new GameProfile.Serializer())
+            .registerTypeAdapter(UUID.class, new UUIDTypeAdapter())
+            .registerTypeAdapter(PropertyMap.class, new PropertyMap.Serializer())
+            .create();
     private static final MessageDigest MESSAGE_DIGEST_SHA1;
     public static final ArrayList<String> EXTRA_DOMAINS = new ArrayList<>();
 
@@ -158,5 +161,26 @@ public class Utils {
             ImageIO.write(bufferedImage, "PNG", byteArrayOutputStream);
             return byteArrayOutputStream.toByteArray();
         }
+    }
+
+    public static HttpURLConnection followHttpRedirects(HttpURLConnection connection, Proxy proxy) throws IOException {
+        try {
+            while (isRedirect(connection.getResponseCode())) {
+                URL newUrl = URL.of(new URI(connection.getHeaderField("Location")), null);
+                connection.disconnect();
+                HttpURLConnection newConnection = (HttpURLConnection) (proxy != null ? newUrl.openConnection(proxy) : newUrl.openConnection());
+                newConnection.setDoOutput(false);
+                newConnection.setDoInput(true);
+                newConnection.connect();
+                connection = newConnection;
+            }
+            return connection;
+        } catch (URISyntaxException e) {
+            throw new IOException(e);
+        }
+    }
+
+    private static boolean isRedirect(int responseCode) {
+        return responseCode == HttpURLConnection.HTTP_MOVED_PERM || responseCode == HttpURLConnection.HTTP_MOVED_TEMP || responseCode == HttpURLConnection.HTTP_SEE_OTHER;
     }
 }
