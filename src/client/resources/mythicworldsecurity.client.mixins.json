@@ -8,7 +8,9 @@
     "ClientPlayNetworkHandlerMixin",
     "MinecraftClientMixin",
     "PlayerListHudMixin",
-    "PlayerSkinTextureMixin"
+    "PlayerSkinProviderFileCacheMixin",
+    "PlayerSkinTextureMixin",
+    "ConnectScreenConnectorThreadMixin"
   ],
   "injectors": {
     "defaultRequire": 1

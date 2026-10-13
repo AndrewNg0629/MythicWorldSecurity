@@ -3,6 +3,7 @@ package top.aenp.msec.mixin;
 import com.mojang.authlib.GameProfile;
 import net.minecraft.network.ClientConnection;
 import net.minecraft.network.packet.c2s.login.LoginHelloC2SPacket;
+import net.minecraft.network.packet.s2c.login.LoginQueryRequestS2CPacket;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerLoginNetworkHandler;
 import net.minecraft.text.Text;
@@ -17,9 +18,11 @@ import top.aenp.msec.network.MSecServerLoginHandshakeHandlerImpl;
 import top.aenp.msec.network.ServerTextureService;
 import top.aenp.msec.network.interfaces.MSecServerLoginHandshakeHandler;
 import top.aenp.msec.network.interfaces.MSecServerLoginNetworkHandler;
+import top.aenp.msec.network.payloads.LoginHeartbeatS2CPayload;
 import top.aenp.msec.network.payloads.texture.LoginTextureDataC2SPayload;
 import top.aenp.msec.network.payloads.texture.LoginTextureMetadataC2SPayload;
 import top.aenp.mwl.misc.EnvironmentDetector;
+import top.aenp.mwl.network.v2.MythicNetwork;
 
 @Mixin(ServerLoginNetworkHandler.class)
 public abstract class ServerLoginNetworkHandlerMixin implements MSecServerLoginNetworkHandler {
@@ -39,6 +42,8 @@ public abstract class ServerLoginNetworkHandlerMixin implements MSecServerLoginN
     @Shadow
     public abstract void disconnect(Text reason);
 
+    @Shadow
+    private int loginTicks;
     @Unique
     private MSecServerLoginHandshakeHandler mSecServerLoginHandshakeHandler = null;
 //    @Unique
@@ -47,6 +52,12 @@ public abstract class ServerLoginNetworkHandlerMixin implements MSecServerLoginN
 //    private boolean testDone = false;
 //    @Unique
 //    private long ts = 0L;
+
+    @Unique
+    private boolean isWaitingForTrust = false;
+
+    @Unique
+    private int trustElapsedTicks = 0;
 
     @Inject(method = "<init>", at = @At(value = "RETURN"))
     private void init(MinecraftServer server, ClientConnection connection, boolean transferred, CallbackInfo info) {
@@ -58,6 +69,20 @@ public abstract class ServerLoginNetworkHandlerMixin implements MSecServerLoginN
         if (!EnvironmentDetector.isPhyClient) {
             mSecServerLoginHandshakeHandler.onVanillaHello(packet);
             info.cancel();
+        }
+    }
+
+    @Inject(method = "tick", at = @At(value = "RETURN"))
+    private void handleTrustWaiting(CallbackInfo info) {
+        if (isWaitingForTrust) {
+            final int trustTimeOut = 3600;
+            loginTicks--;
+            if (++trustElapsedTicks >= trustTimeOut) {
+                disconnect(Text.of("Client trust operation timed out."));
+            }
+            if ((trustTimeOut - trustElapsedTicks) % 20 == 0) {
+                connection.send(new LoginQueryRequestS2CPacket(MythicNetwork.QUERY_ID, new LoginHeartbeatS2CPayload((trustTimeOut - trustElapsedTicks) / 20)));
+            }
         }
     }
 
@@ -108,5 +133,10 @@ public abstract class ServerLoginNetworkHandlerMixin implements MSecServerLoginN
     @Override
     public void mythicworldsecurity$startVerify(GameProfile profile) {
         startVerify(profile);
+    }
+
+    @Override
+    public void mythicworldsecurity$setWaitingForTrust(boolean isWaitingForTrust) {
+        this.isWaitingForTrust = isWaitingForTrust;
     }
 }

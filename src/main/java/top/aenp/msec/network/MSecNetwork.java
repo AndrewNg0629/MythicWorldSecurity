@@ -1,6 +1,8 @@
 package top.aenp.msec.network;
 
 import top.aenp.msec.Utils;
+import top.aenp.msec.network.payloads.LoginHeartbeatC2SPayload;
+import top.aenp.msec.network.payloads.LoginHeartbeatS2CPayload;
 import top.aenp.msec.network.payloads.crypto.c2s.LoginIdentityC2SPayload;
 import top.aenp.msec.network.payloads.crypto.c2s.LoginModVersionC2SPayload;
 import top.aenp.msec.network.payloads.crypto.c2s.LoginSignatureC2SPayload;
@@ -48,6 +50,8 @@ public class MSecNetwork {
             MythicNetwork.INSTANCE.LOGIN_C2S_CODECS.put(LoginX25519C2SPayload.ID, LoginX25519C2SPayload.CODEC);
             MythicNetwork.INSTANCE.LOGIN_S2C_CODECS.put(LoginSignatureS2CPayload.ID, LoginSignatureS2CPayload.CODEC);
             MythicNetwork.INSTANCE.LOGIN_C2S_CODECS.put(LoginSignatureC2SPayload.ID, LoginSignatureC2SPayload.CODEC);
+            MythicNetwork.INSTANCE.LOGIN_S2C_CODECS.put(LoginHeartbeatS2CPayload.ID, LoginHeartbeatS2CPayload.CODEC);
+            MythicNetwork.INSTANCE.LOGIN_C2S_CODECS.put(LoginHeartbeatC2SPayload.ID, LoginHeartbeatC2SPayload.CODEC);
             initialized = true;
         } else {
             throw new IllegalStateException("MSecNetwork has already been initialized!");

@@ -1,5 +1,6 @@
 package top.aenp.msec.network.client;
 
+import net.minecraft.client.network.ServerAddress;
 import net.minecraft.network.ClientConnection;
 import net.minecraft.network.PacketCallbacks;
 import net.minecraft.network.packet.c2s.login.LoginQueryResponseC2SPacket;
@@ -19,6 +20,7 @@ import top.aenp.msec.network.payloads.crypto.s2c.LoginIdentityS2CPayload;
 import top.aenp.msec.network.payloads.crypto.s2c.LoginModVersionS2CPayload;
 import top.aenp.msec.network.payloads.crypto.s2c.LoginSignatureS2CPayload;
 import top.aenp.msec.network.payloads.crypto.s2c.LoginX25519S2CPayload;
+import top.aenp.msec.trust.client.ServerIdentityTrustScreen;
 import top.aenp.mwl.network.v2.MythicNetwork;
 import top.aenp.mwl.network.v2.payloads.interfaces.MythicLoginC2SPayload;
 
@@ -33,6 +35,7 @@ import java.util.function.Consumer;
 import static top.aenp.msec.network.interfaces.MSecServerLoginHandshakeHandler.MSecHandshakeState;
 
 public class MSecClientLoginHandshakeHandlerImpl implements MSecClientLoginHandshakeHandler {
+    public static final ThreadLocal<ServerAddress> SERVER_ADDRESS_THREAD_LOCAL = new ThreadLocal<>();
     private final ClientConnection clientConnection;
     private final Consumer<Text> stateConsumer;
     private final ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
@@ -40,10 +43,12 @@ public class MSecClientLoginHandshakeHandlerImpl implements MSecClientLoginHands
     private MSecAESKeySet mSecAESKeySet = null;
     private PublicKey serverEd25519PublicKey = null;
     private String serverFingerprint = null;
+    public final ServerAddress serverAddress;
 
     public MSecClientLoginHandshakeHandlerImpl(ClientConnection connection, Consumer<Text> stateConsumer) {
         clientConnection = connection;
         this.stateConsumer = stateConsumer;
+        serverAddress = SERVER_ADDRESS_THREAD_LOCAL.get();
     }
 
     @Override
@@ -62,14 +67,10 @@ public class MSecClientLoginHandshakeHandlerImpl implements MSecClientLoginHands
     public void onServerIdentity(LoginIdentityS2CPayload payload) {
         Validate.validState(state == MSecHandshakeState.IDENTITY_EXCHANGE, "Unexpected server identity payload!");
         payload.writeMessageAsBytes(byteArrayOutputStream);
-        InetSocketAddress connectionSocketAddress = (InetSocketAddress) clientConnection.getAddress();
-        String serverHostName = connectionSocketAddress.getHostString();
-        int serverPort = connectionSocketAddress.getPort();
-        //TODO Trust logic.
         serverEd25519PublicKey = payload.serverPublicKey();
         serverFingerprint = MSecEd25519Identity.hashEd25519PublicKey(serverEd25519PublicKey);
-        state = MSecHandshakeState.KEY_EXCHANGE;
-        sendPayload(new LoginIdentityC2SPayload(MSecEd25519Identity.getInstance().publicKey));
+        //TODO Test logic.
+        ServerIdentityTrustScreen.switchToTrustScreen(this, clientConnection, serverFingerprint);
     }
 
     @Override
@@ -120,9 +121,15 @@ public class MSecClientLoginHandshakeHandlerImpl implements MSecClientLoginHands
                 }
             }
         } catch (NoSuchAlgorithmException | InvalidKeyException | SignatureException e) {
-            clientConnection.disconnect(Text.of("Failed to validate your signature."));
+            clientConnection.disconnect(Text.of("Failed to validate server signature."));
             MythicWorldSecurity.LOGGER.error("Failed to validate server signature: {}", e.toString());
         }
+    }
+
+    @Override
+    public void finishTrust() {
+        state = MSecHandshakeState.KEY_EXCHANGE;
+        sendPayload(new LoginIdentityC2SPayload(MSecEd25519Identity.getInstance().publicKey));
     }
 
     private void sendPayload(MythicLoginC2SPayload payload) {

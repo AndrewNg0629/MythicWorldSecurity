@@ -22,6 +22,7 @@ import top.aenp.mwl.network.v2.MythicNetwork;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
@@ -34,10 +35,16 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.LinkedBlockingDeque;
+import java.util.zip.Deflater;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 public class ClientTextureService {
     private static ClientTextureService INSTANCE = null;
+
+    public final CopyOnWriteArraySet<String> failedPlayerTextures = new CopyOnWriteArraySet<>();
     private final HashMap<String, ClientTextureRequestEntry> textureRequests = new HashMap<>();
     private final LinkedBlockingDeque<PlayTextureResponseS2CPayload> textureResponseQueue = new LinkedBlockingDeque<>();
     private final LinkedBlockingDeque<TextureCommandEntry> textureCommandQueue = new LinkedBlockingDeque<>();
@@ -79,6 +86,34 @@ public class ClientTextureService {
             INSTANCE = new ClientTextureService();
         } else {
             throw new IllegalStateException("Client texture service has already been initialized!");
+        }
+    }
+
+    public static byte[] unpackIntArray(int[] intArray) {
+        byte[] byteArray = new byte[intArray.length * 4];
+        for (int a = 0; a < intArray.length; a++) {
+            byteArray[a * 4] = (byte) (intArray[a] >>> 24 & 0xff);
+            byteArray[a * 4 + 1] = (byte) (intArray[a] >>> 16 & 0xff);
+            byteArray[a * 4 + 2] = (byte) (intArray[a] >>> 8 & 0xff);
+            byteArray[a * 4 + 3] = (byte) (intArray[a] & 0xff);
+        }
+        return byteArray;
+    }
+
+    public static byte[] compressBufferedImage(BufferedImage bufferedImage) throws IOException {
+        int width = bufferedImage.getWidth();
+        int height = bufferedImage.getHeight();
+        int[] intPixelData = bufferedImage.getRGB(0, 0, width, height, null, 0, width);
+        byte[] bytePixelData = unpackIntArray(intPixelData);
+        try (ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+             ZipOutputStream zipOutputStream = new ZipOutputStream(byteArrayOutputStream)
+        ) {
+            zipOutputStream.setMethod(ZipOutputStream.DEFLATED);
+            zipOutputStream.setLevel(Deflater.DEFAULT_COMPRESSION);
+            zipOutputStream.putNextEntry(new ZipEntry("pixels"));
+            zipOutputStream.write(bytePixelData);
+            zipOutputStream.closeEntry();
+            return byteArrayOutputStream.toByteArray();
         }
     }
 
@@ -146,6 +181,13 @@ public class ClientTextureService {
         textureCommandQueue.add(new TextureCommandEntry(payload.command(), connection));
     }
 
+    public static byte[] encodeBufferedImage(BufferedImage bufferedImage) throws IOException {
+        try (ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream()) {
+            ImageIO.write(bufferedImage, "PNG", byteArrayOutputStream);
+            return byteArrayOutputStream.toByteArray();
+        }
+    }
+
     @SuppressWarnings("BusyWait")
     private ClientTextureService() {
         Runnable receptionTask = () -> {
@@ -157,6 +199,7 @@ public class ClientTextureService {
                         ClientTextureRequestEntry entry = textureRequests.get(hash);
                         if (entry != null) {
                             entry.future.complete(payload);
+                            textureRequests.remove(hash);
                         }
                     }
                 } catch (InterruptedException e) {
@@ -180,11 +223,11 @@ public class ClientTextureService {
                                 BufferedImage capeImage = localTextureCache.cape;
                                 boolean slim = localTextureCache.slimModel;
                                 if (skinImage != null) {
-                                    byte[] encodedSkin = Utils.encodeBufferedImage(skinImage);
+                                    byte[] encodedSkin = encodeBufferedImage(skinImage);
                                     skinHash = Utils.hashBytes1(encodedSkin);
                                 }
                                 if (capeImage != null) {
-                                    byte[] encodedCape = Utils.encodeBufferedImage(capeImage);
+                                    byte[] encodedCape = encodeBufferedImage(capeImage);
                                     capeHash = Utils.hashBytes1(encodedCape);
                                 }
                                 LoginTextureMetadataC2SPayload textureMetadataPayload = new LoginTextureMetadataC2SPayload(skinHash, slim, capeHash);
@@ -194,7 +237,7 @@ public class ClientTextureService {
                                 LoginTextureDataC2SPayload skinDataPayload = new LoginTextureDataC2SPayload(LoginTextureDataC2SPayload.TextureType.SKIN, 0, 0, null);
                                 BufferedImage cachedSkinImage = localTextureCache.skin;
                                 if (cachedSkinImage != null) {
-                                    byte[] compressedSkin = Utils.compressBufferedImage(cachedSkinImage);
+                                    byte[] compressedSkin = compressBufferedImage(cachedSkinImage);
                                     skinDataPayload = new LoginTextureDataC2SPayload(LoginTextureDataC2SPayload.TextureType.SKIN, cachedSkinImage.getWidth(), cachedSkinImage.getHeight(), compressedSkin);
                                 }
                                 entry.connection.send(new LoginQueryResponseC2SPacket(MythicNetwork.QUERY_ID, skinDataPayload));
@@ -203,7 +246,7 @@ public class ClientTextureService {
                                 LoginTextureDataC2SPayload capeDataPayload = new LoginTextureDataC2SPayload(LoginTextureDataC2SPayload.TextureType.CAPE, 0, 0, null);
                                 BufferedImage cachedCapeImage = localTextureCache.cape;
                                 if (cachedCapeImage != null) {
-                                    byte[] compressedCape = Utils.compressBufferedImage(cachedCapeImage);
+                                    byte[] compressedCape = compressBufferedImage(cachedCapeImage);
                                     capeDataPayload = new LoginTextureDataC2SPayload(LoginTextureDataC2SPayload.TextureType.CAPE, cachedCapeImage.getWidth(), cachedCapeImage.getHeight(), compressedCape);
                                 }
                                 entry.connection.send(new LoginQueryResponseC2SPacket(MythicNetwork.QUERY_ID, capeDataPayload));

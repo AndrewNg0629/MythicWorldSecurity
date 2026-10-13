@@ -9,21 +9,22 @@ import top.aenp.msec.network.payloads.texture.LoginTextureDataC2SPayload;
 import top.aenp.msec.network.payloads.texture.PlayTextureRequestC2SPayload;
 import top.aenp.msec.network.payloads.texture.PlayTextureResponseS2CPayload;
 
+import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.concurrent.LinkedBlockingDeque;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 
 public class ServerTextureService {
     private static ServerTextureService INSTANCE = null;
     private final LinkedBlockingDeque<RequestEntry> requestQueue = new LinkedBlockingDeque<>();
     private final LinkedBlockingDeque<SubmissionEntry> submissionQueue = new LinkedBlockingDeque<>();
     private final HashMap<String, CacheEntry> inMemoryCache = new HashMap<>();
-    private final Path cacheDirPath = MythicWorldSecurity.MAIN_DIR.resolve("texture_caches").normalize();
+    private final Path cacheDirPath = MythicWorldSecurity.MAIN_DIR.resolve("server").resolve("texture_caches").normalize();
     private final Object lock = new Object();
 
     public static ServerTextureService getInstance() {
@@ -39,6 +40,55 @@ public class ServerTextureService {
             INSTANCE = new ServerTextureService();
         } else {
             throw new IllegalStateException("Server texture service has already been initialized!");
+        }
+    }
+
+    public static byte[] limitedRead(InputStream inputStream, int sizeLimit) throws IOException {
+        try (ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream()) {
+            byte[] buffer = new byte[1024];
+            int bytesRead;
+            long totalBytes = 0L;
+            while ((bytesRead = inputStream.read(buffer)) != -1) {
+                if ((totalBytes += bytesRead) > sizeLimit) {
+                    throw new IOException(String.format("Input is larger than limit: %d Bytes.", sizeLimit));
+                }
+                byteArrayOutputStream.write(buffer, 0, bytesRead);
+            }
+            return byteArrayOutputStream.toByteArray();
+        }
+    }
+
+    public static int[] packByteArray(byte[] byteArray) {
+        if (byteArray.length % 4 != 0) {
+            return new int[0];
+        }
+        int intArrayLength = byteArray.length / 4;
+        int[] intArray = new int[intArrayLength];
+        for (int a = 0; a < intArrayLength; a++) {
+            intArray[a] = ((byteArray[a * 4] & 0xff) << 24) | ((byteArray[a * 4 + 1] & 0xff) << 16) | ((byteArray[a * 4 + 2] & 0xff) << 8) | (byteArray[a * 4 + 3] & 0xff);
+        }
+        return intArray;
+    }
+
+    public static BufferedImage decompressTexture(byte[] compressedPixels, int width, int height, int maxWidth, int maxHeight) throws IOException {
+        if (width > maxWidth || height > maxHeight) {
+            throw new IOException(String.format("Texture size %d*%d exceeds limit %d*%d.", width, height, maxWidth, maxHeight));
+        }
+        try (ZipInputStream zipInputStream = new ZipInputStream(new ByteArrayInputStream(compressedPixels))) {
+            ZipEntry entry = zipInputStream.getNextEntry();
+            if (entry == null || !entry.getName().equals("pixels")) {
+                throw new IOException("Bad compressed texture data.");
+            }
+            byte[] bytePixels = limitedRead(zipInputStream, maxWidth * maxHeight * 4 + 1);
+            zipInputStream.closeEntry();
+            int[] intPixels = packByteArray(bytePixels);
+            BufferedImage bufferedImage = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+            try {
+                bufferedImage.setRGB(0, 0, width, height, intPixels, 0, width);
+            } catch (ArrayIndexOutOfBoundsException e) {
+                throw new IOException(e);
+            }
+            return bufferedImage;
         }
     }
 
@@ -76,7 +126,7 @@ public class ServerTextureService {
             return null;
         }
         try {
-            Path cacheFilePath = cacheDirPath.resolve(hash).normalize();
+            Path cacheFilePath = cacheDirPath.resolve(hash + ".png").normalize();
             if (!cacheFilePath.startsWith(cacheDirPath)) {
                 return null;
             }
@@ -97,6 +147,13 @@ public class ServerTextureService {
         }
     }
 
+    public static byte[] encodeBufferedImage(BufferedImage bufferedImage) throws IOException {
+        try (ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream()) {
+            ImageIO.write(bufferedImage, "PNG", byteArrayOutputStream);
+            return byteArrayOutputStream.toByteArray();
+        }
+    }
+
     private PlayTextureResponseS2CPayload computeResponsePayload(RequestEntry entry) {
         synchronized (lock) {
             String hash = entry.payload.textureHash();
@@ -105,7 +162,7 @@ public class ServerTextureService {
                 return new PlayTextureResponseS2CPayload(hash, cacheEntry.get());
             } else {
                 try {
-                    Path cacheFilePath = getCacheFilePathSafely(hash + ".png");
+                    Path cacheFilePath = getCacheFilePathSafely(hash);
                     if (cacheFilePath == null) {
                         return new PlayTextureResponseS2CPayload(hash, null);
                     }
@@ -129,8 +186,8 @@ public class ServerTextureService {
                 entry.handler.mythicworldsecurity$textureFileWriteCallback(payload.type(), false, null);
                 return;
             }
-            BufferedImage bufferedImage = Utils.decompressTexture(payload.data(), payload.width(), payload.height(), 64, 64);
-            byte[] texturePngBytes = Utils.encodeBufferedImage(bufferedImage);
+            BufferedImage bufferedImage = decompressTexture(payload.data(), payload.width(), payload.height(), 64, 64);
+            byte[] texturePngBytes = encodeBufferedImage(bufferedImage);
             String hash = Utils.hashBytes1(texturePngBytes);
             boolean sizeValid = switch (payload.type()) {
                 case SKIN -> bufferedImage.getWidth() == 64 && bufferedImage.getHeight() == 64;

@@ -10,4 +10,5 @@ public interface MSecClientLoginHandshakeHandler {
     void onServerIdentity(LoginIdentityS2CPayload payload);
     void onServerX25519(LoginX25519S2CPayload payload);
     void onServerSignature(LoginSignatureS2CPayload payload);
+    void finishTrust();
 }

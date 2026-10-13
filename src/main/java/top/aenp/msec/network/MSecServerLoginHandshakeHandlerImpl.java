@@ -24,6 +24,7 @@ import top.aenp.msec.network.payloads.crypto.s2c.LoginIdentityS2CPayload;
 import top.aenp.msec.network.payloads.crypto.s2c.LoginModVersionS2CPayload;
 import top.aenp.msec.network.payloads.crypto.s2c.LoginSignatureS2CPayload;
 import top.aenp.msec.network.payloads.crypto.s2c.LoginX25519S2CPayload;
+import top.aenp.msec.network.payloads.texture.LoginTextureMetadataC2SPayload;
 import top.aenp.mwl.network.v2.MythicNetwork;
 import top.aenp.mwl.network.v2.payloads.interfaces.MythicLoginS2CPayload;
 
@@ -76,6 +77,7 @@ public class MSecServerLoginHandshakeHandlerImpl implements MSecServerLoginHands
         if (payload.clientProtocolVersion() == MSecNetwork.PROTOCOL_VERSION) {
             state = MSecHandshakeState.IDENTITY_EXCHANGE;
             sendPayload(new LoginIdentityS2CPayload(MSecEd25519Identity.getInstance().publicKey, Set.of()));
+            serverLoginNetworkHandler.mythicworldsecurity$setWaitingForTrust(true);
         } else {
             serverLoginNetworkHandler.disconnect(Text.of("Incompatible MSec client version: " + payload.clientModVersion()));
         }
@@ -85,6 +87,7 @@ public class MSecServerLoginHandshakeHandlerImpl implements MSecServerLoginHands
     public void onClientIdentity(LoginIdentityC2SPayload payload) {
         Validate.validState(state == MSecHandshakeState.IDENTITY_EXCHANGE, "Unexpected client identity payload!");
         payload.writeMessageAsBytes(byteArrayOutputStream);
+        serverLoginNetworkHandler.mythicworldsecurity$setWaitingForTrust(false);
         clientEd25519PublicKey = payload.clientPublicKey();
         clientFingerprint = MSecEd25519Identity.hashEd25519PublicKey(clientEd25519PublicKey);
         try {
@@ -149,6 +152,12 @@ public class MSecServerLoginHandshakeHandlerImpl implements MSecServerLoginHands
     }
 
     //TODO Auth logic.
+
+    @Override
+    public void onTextureMetadata(LoginTextureMetadataC2SPayload payload) {
+        Validate.validState(state == MSecHandshakeState.TEXTURE_METADATA, "Unexpected texture metadata payload!");
+        //TODO
+    }
 
     private void sendPayload(MythicLoginS2CPayload payload) {
         if (payload instanceof SignedPayload signedPayload) {

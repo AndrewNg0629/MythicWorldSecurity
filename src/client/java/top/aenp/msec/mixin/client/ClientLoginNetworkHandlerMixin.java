@@ -6,6 +6,7 @@ import net.minecraft.client.network.ClientLoginNetworkHandler;
 import net.minecraft.client.network.CookieStorage;
 import net.minecraft.client.network.ServerInfo;
 import net.minecraft.network.ClientConnection;
+import net.minecraft.network.packet.c2s.login.LoginQueryResponseC2SPacket;
 import net.minecraft.text.Text;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -14,12 +15,18 @@ import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import top.aenp.msec.MythicWorldSecurity;
 import top.aenp.msec.network.client.ClientTextureService;
 import top.aenp.msec.network.client.MSecClientLoginHandshakeHandlerImpl;
 import top.aenp.msec.network.interfaces.MSecClientLoginHandshakeHandler;
 import top.aenp.msec.network.interfaces.MSecClientLoginNetworkHandler;
+import top.aenp.msec.network.payloads.LoginHeartbeatC2SPayload;
+import top.aenp.msec.network.payloads.LoginHeartbeatS2CPayload;
 import top.aenp.msec.network.payloads.texture.LoginTextureCommandS2CPayload;
+import top.aenp.msec.trust.client.ServerIdentityTrustScreen;
+import top.aenp.mwl.network.v2.MythicNetwork;
 
+import java.net.InetSocketAddress;
 import java.time.Duration;
 import java.util.function.Consumer;
 
@@ -35,6 +42,14 @@ public class ClientLoginNetworkHandlerMixin implements MSecClientLoginNetworkHan
     @Override
     public void mythicworldsecurity$onTextureCommand(LoginTextureCommandS2CPayload payload) {
         ClientTextureService.getInstance().onTextureCommand(payload, connection);
+    }
+
+    @Override
+    public void mythicworldsecurity$onHeartbeat(LoginHeartbeatS2CPayload payload) {
+        if (MinecraftClient.getInstance().currentScreen instanceof ServerIdentityTrustScreen serverIdentityTrustScreen) {
+            serverIdentityTrustScreen.setRemainingTime(payload.remainingSeconds());
+        }
+        connection.send(new LoginQueryResponseC2SPacket(MythicNetwork.QUERY_ID, new LoginHeartbeatC2SPayload()));
     }
 
     @Override

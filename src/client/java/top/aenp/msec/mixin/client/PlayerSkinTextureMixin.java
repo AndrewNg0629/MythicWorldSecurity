@@ -65,10 +65,13 @@ public abstract class PlayerSkinTextureMixin {
                                 this.onTextureLoaded(nativeImage);
                             }
                         });
+                        ClientTextureService.getInstance().failedPlayerTextures.remove(hash);
                     } catch (Exception e) {
+                        ClientTextureService.getInstance().failedPlayerTextures.add(hash);
                         MythicWorldSecurity.LOGGER.error("Failed to inject texture.", e);
                     }
                 } else {
+                    ClientTextureService.getInstance().failedPlayerTextures.add(hash);
                     MythicWorldSecurity.LOGGER.warn("Failed to fetch texture {} from server.", hash);
                 }
             }, executor);

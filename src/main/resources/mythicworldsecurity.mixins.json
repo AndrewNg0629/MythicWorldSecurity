@@ -4,7 +4,6 @@
   "package": "top.aenp.msec.mixin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
-    "ClientConnectionMixin",
     "ServerLoginNetworkHandlerMixin",
     "ServerPlayNetworkHandlerMixin",
     "YggdrasilAuthenticationServiceMixin",

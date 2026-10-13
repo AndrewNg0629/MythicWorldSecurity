@@ -11,8 +11,10 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.*;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
-public record YggdrasilApiMetadata(String metaServerName, String injectedApiUrl, String homepageUrl, List<String> skinDomains) {
+public record YggdrasilApiMetadata(String metaServerName, String injectedApiUrl, String homepageUrl, Set<String> skinDomains) {
 
     public static YggdrasilApiMetadata fetchApiMetadataWithRetries(String originalApiUrlString, Proxy proxy, int maxRetries) {
         for (int i = 1; i <= maxRetries; i++) {
@@ -41,7 +43,7 @@ public record YggdrasilApiMetadata(String metaServerName, String injectedApiUrl,
             originalConnection.setDoOutput(false);
             originalConnection.setDoInput(true);
             originalConnection.connect();
-            followedConnection = originalConnection;
+            followedConnection = Utils.followHttpRedirects(originalConnection, proxy);
             String indicatedApiUrlString = originalConnection.getHeaderField("x-authlib-injector-api-location");
             if (indicatedApiUrlString != null) {
                 indicatedApiUrlString = addHttpsAndSlash(indicatedApiUrlString);
@@ -63,7 +65,7 @@ public record YggdrasilApiMetadata(String metaServerName, String injectedApiUrl,
             try(InputStreamReader reader = new InputStreamReader(followedConnection.getInputStream())) {
                 String metaServerName = null;
                 String homepageUrl = null;
-                List<String> skinDomains = null;
+                Set<String> skinDomains = null;
                 JsonObject metadataRootJson = JsonParser.parseReader(reader).getAsJsonObject();
                 JsonObject metaJson = metadataRootJson.getAsJsonObject("meta");
                 JsonElement metaServerNameJson = metaJson.get("serverName");
@@ -83,7 +85,7 @@ public record YggdrasilApiMetadata(String metaServerName, String injectedApiUrl,
                             .asList()
                             .stream()
                             .map(jsonElement -> jsonElement.getAsJsonPrimitive().getAsString())
-                            .toList();
+                            .collect(Collectors.toSet());
                 }
                 return new YggdrasilApiMetadata(metaServerName, originalApiUrlString, homepageUrl, skinDomains);
             } catch (Exception e) {

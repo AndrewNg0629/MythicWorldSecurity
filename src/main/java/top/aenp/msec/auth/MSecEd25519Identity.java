@@ -36,7 +36,7 @@ public class MSecEd25519Identity {
 
     private MSecEd25519Identity() {
         try {
-            Path keypairDirPath = MythicWorldSecurity.MAIN_DIR.resolve(EnvironmentDetector.isPhyClient ? "identity-client" : "identity-server").normalize();
+            Path keypairDirPath = MythicWorldSecurity.MAIN_DIR.resolve(EnvironmentDetector.isPhyClient ? "client" : "server").resolve("identity").normalize();
             if (!Files.exists(keypairDirPath)) {
                 Files.createDirectories(keypairDirPath);
             }

@@ -4,9 +4,8 @@ import com.google.gson.*;
 import com.mojang.authlib.GameProfile;
 import com.mojang.authlib.properties.PropertyMap;
 import com.mojang.util.UUIDTypeAdapter;
+import top.aenp.mwl.misc.MythicReflectionUtils;
 
-import javax.imageio.ImageIO;
-import java.awt.image.BufferedImage;
 import java.io.*;
 import java.math.BigInteger;
 import java.net.*;
@@ -15,10 +14,6 @@ import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Locale;
 import java.util.UUID;
-import java.util.zip.Deflater;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipInputStream;
-import java.util.zip.ZipOutputStream;
 
 public class Utils {
     public static final Gson GSON = new GsonBuilder()
@@ -34,21 +29,6 @@ public class Utils {
             MESSAGE_DIGEST_SHA1 = MessageDigest.getInstance("SHA-1");
         } catch (NoSuchAlgorithmException e) {
             throw new RuntimeException(e);
-        }
-    }
-
-    public static byte[] limitedRead(InputStream inputStream, int sizeLimit) throws IOException {
-        try (ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream()) {
-            byte[] buffer = new byte[1024];
-            int bytesRead;
-            long totalBytes = 0L;
-            while ((bytesRead = inputStream.read(buffer)) != -1) {
-                if ((totalBytes += bytesRead) > sizeLimit) {
-                    throw new IOException(String.format("Input is larger than limit: %d Bytes.", sizeLimit));
-                }
-                byteArrayOutputStream.write(buffer, 0, bytesRead);
-            }
-            return byteArrayOutputStream.toByteArray();
         }
     }
 
@@ -93,90 +73,29 @@ public class Utils {
         }
         return false;
     }
-
-    public static int[] packByteArray(byte[] byteArray) {
-        if (byteArray.length % 4 != 0) {
-            return new int[0];
-        }
-        int intArrayLength = byteArray.length / 4;
-        int[] intArray = new int[intArrayLength];
-        for (int a = 0; a < intArrayLength; a++) {
-            intArray[a] = ((byteArray[a * 4] & 0xff) << 24) | ((byteArray[a * 4 + 1] & 0xff) << 16) | ((byteArray[a * 4 + 2] & 0xff) << 8) | (byteArray[a * 4 + 3] & 0xff);
-        }
-        return intArray;
-    }
-
-    public static byte[] unpackIntArray(int[] intArray) {
-        byte[] byteArray = new byte[intArray.length * 4];
-        for (int a = 0; a < intArray.length; a++) {
-            byteArray[a * 4] = (byte) (intArray[a] >>> 24 & 0xff);
-            byteArray[a * 4 + 1] = (byte) (intArray[a] >>> 16 & 0xff);
-            byteArray[a * 4 + 2] = (byte) (intArray[a] >>> 8 & 0xff);
-            byteArray[a * 4 + 3] = (byte) (intArray[a] & 0xff);
-        }
-        return byteArray;
-    }
-
-    public static byte[] compressBufferedImage(BufferedImage bufferedImage) throws IOException {
-        int width = bufferedImage.getWidth();
-        int height = bufferedImage.getHeight();
-        int[] intPixelData = bufferedImage.getRGB(0, 0, width, height, null, 0, width);
-        byte[] bytePixelData = unpackIntArray(intPixelData);
-        try (ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-             ZipOutputStream zipOutputStream = new ZipOutputStream(byteArrayOutputStream)
-        ) {
-            zipOutputStream.setMethod(ZipOutputStream.DEFLATED);
-            zipOutputStream.setLevel(Deflater.DEFAULT_COMPRESSION);
-            zipOutputStream.putNextEntry(new ZipEntry("pixels"));
-            zipOutputStream.write(bytePixelData);
-            zipOutputStream.closeEntry();
-            return byteArrayOutputStream.toByteArray();
-        }
-    }
-
-    public static BufferedImage decompressTexture(byte[] compressedPixels, int width, int height, int maxWidth, int maxHeight) throws IOException {
-        if (width > maxWidth || height > maxHeight) {
-            throw new IOException(String.format("Texture size %d*%d exceeds limit %d*%d.", width, height, maxWidth, maxHeight));
-        }
-        try (ZipInputStream zipInputStream = new ZipInputStream(new ByteArrayInputStream(compressedPixels))) {
-            ZipEntry entry = zipInputStream.getNextEntry();
-            if (entry == null || !entry.getName().equals("pixels")) {
-                throw new IOException("Bad compressed texture data.");
-            }
-            byte[] bytePixels = limitedRead(zipInputStream, maxWidth * maxHeight * 4 + 1);
-            zipInputStream.closeEntry();
-            int[] intPixels = packByteArray(bytePixels);
-            BufferedImage bufferedImage = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
-            try {
-                bufferedImage.setRGB(0, 0, width, height, intPixels, 0, width);
-            } catch (ArrayIndexOutOfBoundsException e) {
-                throw new IOException(e);
-            }
-            return bufferedImage;
-        }
-    }
-
-    public static byte[] encodeBufferedImage(BufferedImage bufferedImage) throws IOException {
-        try (ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream()) {
-            ImageIO.write(bufferedImage, "PNG", byteArrayOutputStream);
-            return byteArrayOutputStream.toByteArray();
-        }
-    }
-
     public static HttpURLConnection followHttpRedirects(HttpURLConnection connection, Proxy proxy) throws IOException {
+        HttpURLConnection newConnection = null;
+        int redirectionCount = 0;
         try {
             while (isRedirect(connection.getResponseCode())) {
+                if (redirectionCount > 10) {
+                    throw new IOException("Too many redirects!");
+                }
                 URL newUrl = URL.of(new URI(connection.getHeaderField("Location")), null);
                 connection.disconnect();
-                HttpURLConnection newConnection = (HttpURLConnection) (proxy != null ? newUrl.openConnection(proxy) : newUrl.openConnection());
+                newConnection = (HttpURLConnection) (proxy != null ? newUrl.openConnection(proxy) : newUrl.openConnection());
                 newConnection.setDoOutput(false);
                 newConnection.setDoInput(true);
                 newConnection.connect();
                 connection = newConnection;
+                redirectionCount++;
             }
             return connection;
-        } catch (URISyntaxException e) {
-            throw new IOException(e);
+        } catch (URISyntaxException | IOException e) {
+            if (newConnection != null) {
+                newConnection.disconnect();
+            }
+            throw new IOException("Failed to follow redirects!", e);
         }
     }
 
