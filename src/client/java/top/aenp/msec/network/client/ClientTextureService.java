@@ -13,11 +13,7 @@ import net.minecraft.network.packet.c2s.login.LoginQueryResponseC2SPacket;
 import net.minecraft.text.Text;
 import top.aenp.msec.MythicWorldSecurity;
 import top.aenp.msec.Utils;
-import top.aenp.msec.network.payloads.texture.LoginTextureCommandS2CPayload;
-import top.aenp.msec.network.payloads.texture.LoginTextureDataC2SPayload;
-import top.aenp.msec.network.payloads.texture.LoginTextureMetadataC2SPayload;
-import top.aenp.msec.network.payloads.texture.PlayTextureRequestC2SPayload;
-import top.aenp.msec.network.payloads.texture.PlayTextureResponseS2CPayload;
+import top.aenp.msec.network.payloads.texture.*;
 import top.aenp.mwl.network.v2.MythicNetwork;
 
 import javax.imageio.ImageIO;
@@ -148,7 +144,7 @@ public class ClientTextureService {
                 GameProfile profile = client.getGameProfile();
                 Property textureProperty = Iterables.getFirst(profile.getProperties().get("textures"), null);
                 if (textureProperty != null) {
-                    MinecraftTexturesPayload payload = Utils.GSON.fromJson(new String(Base64.getDecoder().decode(textureProperty.value()), StandardCharsets.UTF_8), MinecraftTexturesPayload.class);
+                    MinecraftTexturesPayload payload = Utils.PROFILE_GSON.fromJson(new String(Base64.getDecoder().decode(textureProperty.value()), StandardCharsets.UTF_8), MinecraftTexturesPayload.class);
                     Map<MinecraftProfileTexture.Type, MinecraftProfileTexture> textures = payload.textures();
                     MinecraftProfileTexture skinProfileTexture = textures.get(MinecraftProfileTexture.Type.SKIN);
                     boolean slim = false;

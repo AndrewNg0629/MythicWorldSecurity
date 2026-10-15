@@ -35,7 +35,10 @@ import java.io.ByteArrayOutputStream;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.security.*;
-import java.util.*;
+import java.util.Base64;
+import java.util.HashMap;
+import java.util.Set;
+import java.util.UUID;
 
 public class MSecServerLoginHandshakeHandlerImpl implements MSecServerLoginHandshakeHandler {
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
@@ -195,7 +198,7 @@ public class MSecServerLoginHandshakeHandlerImpl implements MSecServerLoginHands
                 false,
                 textures
         );
-        String rewrittenPayload = Utils.GSON.toJson(payload);
+        String rewrittenPayload = Utils.PROFILE_GSON.toJson(payload);
         String encodedRewrittenPayload = Base64.getEncoder().encodeToString(rewrittenPayload.getBytes(StandardCharsets.UTF_8));
         gameProfile.getProperties().put("textures", new Property("textures", encodedRewrittenPayload));
         return gameProfile;

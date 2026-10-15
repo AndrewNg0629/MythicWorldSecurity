@@ -12,7 +12,7 @@ import top.aenp.mwl.misc.EnvironmentDetector;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.*;
+import java.util.Arrays;
 
 public class MythicWorldSecurity implements ModInitializer {
     public static final Logger LOGGER = LoggerFactory.getLogger("MythicWorldSecurity");
@@ -24,10 +24,10 @@ public class MythicWorldSecurity implements ModInitializer {
     public void onInitialize() {
         if (!EnvironmentDetector.isPhyClient) {
             if (Arrays.stream(Package.getPackages()).anyMatch(pack -> pack.getName().startsWith("moe.yushi.authlibinjector"))) {
-                LOGGER.error("**** AUTHLIB INJECTOR DETECTED ON DEDICATED SERVER! ****");
+                LOGGER.error("**** AUTHLIB INJECTOR IS DETECTED ON DEDICATED SERVER! ****");
                 LOGGER.error("Minecraft server is shutting down!");
-                LOGGER.error("Authlib Injector can corrupt MSec's server logic, leading to malfunctions and unexpected behaviour!");
-                LOGGER.error("MSec already handles authentication on dedicated servers, so you don't need it here.");
+                LOGGER.error("Authlib Injector can corrupt MSec's server logic, leading to malfunctions and undefined behaviour!");
+                LOGGER.error("MSec already handles authentication on dedicated servers, so you don't need Authlib Injector here.");
                 Runtime.getRuntime().halt(-1);
             } else {
                 LOGGER.info("Authlib Injector is not detected, MSec will function properly.");
@@ -43,7 +43,6 @@ public class MythicWorldSecurity implements ModInitializer {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-        Utils.EXTRA_DOMAINS.add(MSecNetwork.MSEC_DUMMY_DOMAIN);
         MSecNetwork.init();
         MSecEd25519Identity.init();
         if (!EnvironmentDetector.isPhyClient) {

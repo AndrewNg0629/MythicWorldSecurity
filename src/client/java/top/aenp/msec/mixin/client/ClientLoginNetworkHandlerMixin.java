@@ -15,7 +15,6 @@ import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import top.aenp.msec.MythicWorldSecurity;
 import top.aenp.msec.network.client.ClientTextureService;
 import top.aenp.msec.network.client.MSecClientLoginHandshakeHandlerImpl;
 import top.aenp.msec.network.interfaces.MSecClientLoginHandshakeHandler;
@@ -26,7 +25,6 @@ import top.aenp.msec.network.payloads.texture.LoginTextureCommandS2CPayload;
 import top.aenp.msec.trust.client.ServerIdentityTrustScreen;
 import top.aenp.mwl.network.v2.MythicNetwork;
 
-import java.net.InetSocketAddress;
 import java.time.Duration;
 import java.util.function.Consumer;
 

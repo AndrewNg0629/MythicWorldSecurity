@@ -1,15 +1,11 @@
 package top.aenp.msec.mixin;
 
-import com.mojang.authlib.Environment;
 import com.mojang.authlib.minecraft.client.MinecraftClient;
 import com.mojang.authlib.yggdrasil.ServicesKeySet;
 import com.mojang.authlib.yggdrasil.YggdrasilAuthenticationService;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.Redirect;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
-import top.aenp.mwl.misc.EnvironmentDetector;
 
 import java.net.URL;
 

@@ -1,7 +1,6 @@
 package top.aenp.msec.network.interfaces;
 
 import com.mojang.authlib.GameProfile;
-import top.aenp.msec.network.ServerTextureService;
 import top.aenp.msec.network.payloads.texture.LoginTextureDataC2SPayload;
 import top.aenp.msec.network.payloads.texture.LoginTextureMetadataC2SPayload;
 import top.aenp.mwl.network.v2.interfaces.MythicServerLoginNetworkHandler;

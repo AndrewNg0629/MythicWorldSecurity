@@ -1,13 +1,13 @@
 package top.aenp.msec.auth;
 
-import com.google.gson.*;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonParseException;
+import com.google.gson.JsonParser;
 import com.mojang.authlib.GameProfile;
-import com.mojang.authlib.properties.PropertyMap;
 import com.mojang.authlib.yggdrasil.ProfileActionType;
 import com.mojang.authlib.yggdrasil.ProfileResult;
 import com.mojang.authlib.yggdrasil.response.HasJoinedMinecraftServerResponse;
 import com.mojang.authlib.yggdrasil.response.ProfileAction;
-import com.mojang.util.UUIDTypeAdapter;
 import top.aenp.msec.Utils;
 
 import java.io.IOException;
@@ -44,7 +44,7 @@ public interface AuthSource {
             if (connection.getResponseCode() == 200) {
                 try(InputStreamReader reader = new InputStreamReader(connection.getInputStream())) {
                     JsonElement jsonElement = JsonParser.parseReader(reader);
-                    HasJoinedMinecraftServerResponse response = Utils.GSON.fromJson(jsonElement, HasJoinedMinecraftServerResponse.class);
+                    HasJoinedMinecraftServerResponse response = Utils.PROFILE_GSON.fromJson(jsonElement, HasJoinedMinecraftServerResponse.class);
                     if (response != null && response.id() != null) {
                         GameProfile profile = new GameProfile(response.id(), name);
                         if (response.properties() != null) {

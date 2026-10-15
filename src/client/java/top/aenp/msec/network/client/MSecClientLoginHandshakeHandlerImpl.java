@@ -20,7 +20,9 @@ import top.aenp.msec.network.payloads.crypto.s2c.LoginIdentityS2CPayload;
 import top.aenp.msec.network.payloads.crypto.s2c.LoginModVersionS2CPayload;
 import top.aenp.msec.network.payloads.crypto.s2c.LoginSignatureS2CPayload;
 import top.aenp.msec.network.payloads.crypto.s2c.LoginX25519S2CPayload;
+import top.aenp.msec.trust.client.ClientFingerprintTrustService;
 import top.aenp.msec.trust.client.ServerIdentityTrustScreen;
+import top.aenp.msec.trust.client.TrustedFingerprintEntry;
 import top.aenp.mwl.network.v2.MythicNetwork;
 import top.aenp.mwl.network.v2.payloads.interfaces.MythicLoginC2SPayload;
 
@@ -28,8 +30,11 @@ import javax.crypto.Cipher;
 import javax.crypto.KeyAgreement;
 import javax.crypto.NoSuchPaddingException;
 import java.io.ByteArrayOutputStream;
-import java.net.InetSocketAddress;
+import java.io.IOException;
 import java.security.*;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
 import java.util.function.Consumer;
 
 import static top.aenp.msec.network.interfaces.MSecServerLoginHandshakeHandler.MSecHandshakeState;
@@ -69,8 +74,25 @@ public class MSecClientLoginHandshakeHandlerImpl implements MSecClientLoginHands
         payload.writeMessageAsBytes(byteArrayOutputStream);
         serverEd25519PublicKey = payload.serverPublicKey();
         serverFingerprint = MSecEd25519Identity.hashEd25519PublicKey(serverEd25519PublicKey);
-        //TODO Test logic.
-        ServerIdentityTrustScreen.switchToTrustScreen(this, clientConnection, serverFingerprint);
+        Runnable identityHandlingTask = () -> {
+            try {
+                String serverAddressString = serverAddress.getAddress().toLowerCase(Locale.ROOT) + ":" + serverAddress.getPort();
+                Map<String, TrustedFingerprintEntry> fingerprintMap = ClientFingerprintTrustService.getInstance().readFile();
+                Set<String> matchingAddresses = ClientFingerprintTrustService.findHostsByFingerprints(fingerprintMap, serverFingerprint);
+                if (matchingAddresses.contains(serverAddressString)) {
+                    MythicWorldSecurity.LOGGER.info("This server has already been trusted, resuming connection automatically.");
+                    resumeConnection();
+                } else {
+                    //TODO Fetch https identity and trust/update identity automatically. Warn if https identity changes(https is assumed authoritative).
+                    //TODO Switch to screen when HTTPS is unavailable. The screen should warn strongly if identity changes and https is not applicable.
+                    ServerIdentityTrustScreen.switchToTrustScreen(this, clientConnection, serverAddressString, serverFingerprint, fingerprintMap, matchingAddresses);
+                }
+            } catch (IOException e) {
+                MythicWorldSecurity.LOGGER.error("Exception handling server identity.", e);
+                clientConnection.disconnect(Text.of("Client error when handling server identity."));
+            }
+        };
+        Thread.startVirtualThread(identityHandlingTask).setName("MSec Server Identity Handler H");
     }
 
     @Override
@@ -127,7 +149,7 @@ public class MSecClientLoginHandshakeHandlerImpl implements MSecClientLoginHands
     }
 
     @Override
-    public void finishTrust() {
+    public void resumeConnection() {
         state = MSecHandshakeState.KEY_EXCHANGE;
         sendPayload(new LoginIdentityC2SPayload(MSecEd25519Identity.getInstance().publicKey));
     }

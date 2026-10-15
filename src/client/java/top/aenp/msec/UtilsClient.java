@@ -2,15 +2,13 @@ package top.aenp.msec;
 
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.screen.multiplayer.ConnectScreen;
-import net.minecraft.client.network.ServerAddress;
-import net.minecraft.network.ClientConnection;
 import top.aenp.mwl.misc.MythicReflectionUtils;
 
 import java.lang.management.ManagementFactory;
-import java.net.*;
+import java.net.URISyntaxException;
+import java.net.URL;
 import java.nio.file.Paths;
 import java.util.NoSuchElementException;
-import java.util.concurrent.atomic.AtomicReference;
 
 public class UtilsClient {
     public static final MythicReflectionUtils.ReflectedField<ConnectScreen, Screen> ConnectScreen$parent = new MythicReflectionUtils.ReflectedField<>(ConnectScreen.class, Screen.class, "parent", "field_2412");

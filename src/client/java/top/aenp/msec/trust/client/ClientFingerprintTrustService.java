@@ -4,10 +4,11 @@ import com.google.gson.*;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.JsonOps;
-import com.mojang.serialization.codecs.RecordCodecBuilder;
 import top.aenp.msec.MythicWorldSecurity;
 
-import java.io.*;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
@@ -52,16 +53,6 @@ public class ClientFingerprintTrustService {
         };
         VALIDATED_HOST_STRING_CODEC = Codec.STRING.flatXmap(hostStringNormalizer, hostStringNormalizer);
         FINGERPRINT_MAP_CODEC = Codec.unboundedMap(VALIDATED_HOST_STRING_CODEC, TrustedFingerprintEntry.CODEC);
-    }
-
-    public record TrustedFingerprintEntry(String fingerprint, boolean fromHttps, Optional<Long> creationTimestamp) {
-        public static final Codec<TrustedFingerprintEntry> CODEC = RecordCodecBuilder.create(
-                instance -> instance.group(
-                        Codec.STRING.fieldOf("fingerprint").forGetter(TrustedFingerprintEntry::fingerprint),
-                        Codec.BOOL.fieldOf("from_https").forGetter(TrustedFingerprintEntry::fromHttps),
-                        Codec.LONG.optionalFieldOf("creation_timestamp").forGetter(TrustedFingerprintEntry::creationTimestamp)
-                ).apply(instance, TrustedFingerprintEntry::new)
-        );
     }
 
     private ClientFingerprintTrustService() {
@@ -134,7 +125,7 @@ public class ClientFingerprintTrustService {
     public static Set<String> findHostsByFingerprints(Map<String, TrustedFingerprintEntry> map, String fingerprint) {
         HashSet<String> hosts = new HashSet<>();
         for (Map.Entry<String, TrustedFingerprintEntry> mapEntry : map.entrySet()) {
-            if (mapEntry.getValue().fingerprint.equalsIgnoreCase(fingerprint)) {
+            if (mapEntry.getValue().fingerprint().equalsIgnoreCase(fingerprint)) {
                 hosts.add(mapEntry.getKey());
             }
         }

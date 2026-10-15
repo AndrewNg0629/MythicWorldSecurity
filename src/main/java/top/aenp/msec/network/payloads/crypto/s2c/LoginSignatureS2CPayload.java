@@ -4,11 +4,8 @@ import net.minecraft.network.PacketByteBuf;
 import net.minecraft.network.codec.PacketCodec;
 import net.minecraft.util.Identifier;
 import top.aenp.msec.network.interfaces.MSecClientLoginNetworkHandler;
-import top.aenp.msec.network.interfaces.SignedPayload;
 import top.aenp.mwl.network.v2.interfaces.MythicClientLoginNetworkHandler;
 import top.aenp.mwl.network.v2.payloads.interfaces.MythicLoginS2CPayload;
-
-import java.io.ByteArrayOutputStream;
 
 public record LoginSignatureS2CPayload(byte[] serverSignature) implements MythicLoginS2CPayload {
     public static final Identifier ID = Identifier.of("msec", "signature_s2c");

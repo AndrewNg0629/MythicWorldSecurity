@@ -6,11 +6,10 @@
   "client": [
     "ClientLoginNetworkHandlerMixin",
     "ClientPlayNetworkHandlerMixin",
+    "ConnectScreenConnectorThreadMixin",
     "MinecraftClientMixin",
-    "PlayerListHudMixin",
     "PlayerSkinProviderFileCacheMixin",
-    "PlayerSkinTextureMixin",
-    "ConnectScreenConnectorThreadMixin"
+    "PlayerSkinTextureMixin"
   ],
   "injectors": {
     "defaultRequire": 1

@@ -92,7 +92,7 @@ public class MSecEd25519Identity {
                 throw new RuntimeException("Only half of the keypair is found! Either find another half or regenerate!");
             }
             sha256Fingerprint = hashEd25519PublicKey(publicKey);
-            MythicWorldSecurity.LOGGER.info("The SHA-256 fingerprint of this minecraft {} is {}", EnvironmentDetector.isPhyClient ? "client" : "server", sha256Fingerprint);
+            MythicWorldSecurity.LOGGER.info("The fingerprint of this minecraft {} is {}", EnvironmentDetector.isPhyClient ? "client" : "server", sha256Fingerprint);
         } catch (IOException | NoSuchAlgorithmException e) {
             throw new RuntimeException("Failed to initialize keypair.", e);
         }

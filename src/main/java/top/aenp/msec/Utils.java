@@ -1,28 +1,26 @@
 package top.aenp.msec;
 
-import com.google.gson.*;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.mojang.authlib.GameProfile;
 import com.mojang.authlib.properties.PropertyMap;
 import com.mojang.util.UUIDTypeAdapter;
-import top.aenp.mwl.misc.MythicReflectionUtils;
 
-import java.io.*;
+import java.io.File;
+import java.io.IOException;
 import java.math.BigInteger;
 import java.net.*;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.ArrayList;
-import java.util.Locale;
 import java.util.UUID;
 
 public class Utils {
-    public static final Gson GSON = new GsonBuilder()
+    public static final Gson PROFILE_GSON = new GsonBuilder()
             .registerTypeAdapter(GameProfile.class, new GameProfile.Serializer())
             .registerTypeAdapter(UUID.class, new UUIDTypeAdapter())
             .registerTypeAdapter(PropertyMap.class, new PropertyMap.Serializer())
             .create();
     private static final MessageDigest MESSAGE_DIGEST_SHA1;
-    public static final ArrayList<String> EXTRA_DOMAINS = new ArrayList<>();
 
     static {
         try {
@@ -46,33 +44,6 @@ public class Utils {
         }
     }
 
-    public static boolean isAllowedTextureDomain(final String url) {
-        final URI uri;
-        try {
-            uri = new URI(url).normalize();
-        } catch (final URISyntaxException ignored) {
-            return false;
-        }
-        final String scheme = uri.getScheme();
-        if (scheme == null || !(scheme.equals("http") || scheme.equals("https"))) {
-            return false;
-        }
-        final String domain = uri.getHost();
-        if (domain == null) {
-            return false;
-        }
-        final String decodedDomain = IDN.toUnicode(domain);
-        final String lowerCaseDomain = decodedDomain.toLowerCase(Locale.ROOT);
-        if (!lowerCaseDomain.equals(decodedDomain)) {
-            return false;
-        }
-        for (final String entry : EXTRA_DOMAINS) {
-            if (decodedDomain.endsWith(entry)) {
-                return true;
-            }
-        }
-        return false;
-    }
     public static HttpURLConnection followHttpRedirects(HttpURLConnection connection, Proxy proxy) throws IOException {
         HttpURLConnection newConnection = null;
         int redirectionCount = 0;

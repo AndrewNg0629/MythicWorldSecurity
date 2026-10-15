@@ -1,6 +1,5 @@
 package top.aenp.msec.network;
 
-import top.aenp.msec.Utils;
 import top.aenp.msec.network.payloads.LoginHeartbeatC2SPayload;
 import top.aenp.msec.network.payloads.LoginHeartbeatS2CPayload;
 import top.aenp.msec.network.payloads.crypto.c2s.LoginIdentityC2SPayload;
@@ -14,13 +13,19 @@ import top.aenp.msec.network.payloads.crypto.s2c.LoginX25519S2CPayload;
 import top.aenp.msec.network.payloads.texture.*;
 import top.aenp.mwl.network.v2.MythicNetwork;
 
+import java.net.IDN;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.security.KeyFactory;
 import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.X509EncodedKeySpec;
+import java.util.ArrayList;
+import java.util.Locale;
 
 public class MSecNetwork {
+    public static final ArrayList<String> EXTRA_ALLOWED_DOMAINS = new ArrayList<>();
     private static final KeyFactory X25519_KEY_FACTORY;
     public static final String MSEC_DUMMY_DOMAIN = "msec-placeholder-domain.invalid";
     public static final String TEXTURE_DUMMY_URL_PREFIX = "https://" + MSEC_DUMMY_DOMAIN + "/offline-player-texture/";
@@ -52,6 +57,7 @@ public class MSecNetwork {
             MythicNetwork.INSTANCE.LOGIN_C2S_CODECS.put(LoginSignatureC2SPayload.ID, LoginSignatureC2SPayload.CODEC);
             MythicNetwork.INSTANCE.LOGIN_S2C_CODECS.put(LoginHeartbeatS2CPayload.ID, LoginHeartbeatS2CPayload.CODEC);
             MythicNetwork.INSTANCE.LOGIN_C2S_CODECS.put(LoginHeartbeatC2SPayload.ID, LoginHeartbeatC2SPayload.CODEC);
+            MSecNetwork.EXTRA_ALLOWED_DOMAINS.add(MSecNetwork.MSEC_DUMMY_DOMAIN);
             initialized = true;
         } else {
             throw new IllegalStateException("MSecNetwork has already been initialized!");
@@ -64,5 +70,33 @@ public class MSecNetwork {
         } catch (InvalidKeySpecException e) {
             throw new RuntimeException("Broken X25519 public key.", e);
         }
+    }
+
+    public static boolean isAllowedTextureDomain(final String url) {
+        final URI uri;
+        try {
+            uri = new URI(url).normalize();
+        } catch (final URISyntaxException ignored) {
+            return false;
+        }
+        final String scheme = uri.getScheme();
+        if (scheme == null || !(scheme.equals("http") || scheme.equals("https"))) {
+            return false;
+        }
+        final String domain = uri.getHost();
+        if (domain == null) {
+            return false;
+        }
+        final String decodedDomain = IDN.toUnicode(domain);
+        final String lowerCaseDomain = decodedDomain.toLowerCase(Locale.ROOT);
+        if (!lowerCaseDomain.equals(decodedDomain)) {
+            return false;
+        }
+        for (final String entry : EXTRA_ALLOWED_DOMAINS) {
+            if (decodedDomain.endsWith(entry)) {
+                return true;
+            }
+        }
+        return false;
     }
 }

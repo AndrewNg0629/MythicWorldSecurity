@@ -3,7 +3,6 @@ package top.aenp.msec.network.payloads;
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.network.codec.PacketCodec;
 import net.minecraft.util.Identifier;
-import top.aenp.msec.MythicWorldSecurity;
 import top.aenp.msec.network.interfaces.MSecClientLoginNetworkHandler;
 import top.aenp.mwl.network.v2.interfaces.MythicClientLoginNetworkHandler;
 import top.aenp.mwl.network.v2.payloads.interfaces.MythicLoginS2CPayload;
