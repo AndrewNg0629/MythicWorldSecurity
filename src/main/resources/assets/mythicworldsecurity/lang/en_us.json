@@ -1,0 +1,21 @@
+{
+  "msec.server_trust.trust.title": "MSec Server Identity Trust",
+  "msec.server_trust.trust.paragraph_1": "You are connecting to this server for the first time. In order to secure your connection, please verify the fingerprint below:",
+  "msec.server_trust.trust.paragraph_2": "Ask the server owner for the fingerprint and compare. If it matches exactly, click [Trust This Server] to resume connecting. Otherwise, click [Disconnect] immediately! Once trusted, this interface won't show up again.",
+  "msec.server_trust.trust.paragraph_3": "Additionally, this fingerprint also belongs to the following known servers:",
+  "msec.server_trust.trust.trust_server": "Trust This Server",
+  "msec.server_trust.update.title": "MSec Server Identity Update",
+  "msec.server_trust.update.paragraph_1": "The fingerprint of this server has changed from this known value:",
+  "msec.server_trust.update.paragraph_2": "into this new one:",
+  "msec.server_trust.update.paragraph_3": "This can be caused by a server re-deployment, or possibly attacks. Please confirm this matter with the server owner and ask for the new fingerprint. Click [Trust New Fingerprint] only if the the owner explicitly says you can do so. Once trusted, the new fingerprint will override the old one.",
+  "msec.server_trust.update.paragraph_4": "Current server address:",
+  "msec.server_trust.update.trust_new": "Trust New Fingerprint",
+  "msec.server_trust.update.trust_new_insecure": "Trust New Fingerprint (Insecure)",
+  "msec.server_trust.common.hint": "You can paste the fingerprint from the owner to verify below.",
+  "msec.server_trust.common.paste": "Paste",
+  "msec.server_trust.common.clear": "Clear",
+  "msec.server_trust.common.field_hint": "Fingerprint...",
+  "msec.server_trust.common.disconnect": "Disconnect",
+  "msec.server_trust.common.disconnect_timed": "Disconnect (%ds)",
+  "msec.server_trust.common.fingerprint_mismatch": "Fingerprint doesn't match!"
+}

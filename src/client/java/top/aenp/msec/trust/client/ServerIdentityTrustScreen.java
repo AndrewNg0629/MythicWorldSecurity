@@ -16,7 +16,6 @@ import top.aenp.msec.UtilsClient;
 import top.aenp.msec.network.interfaces.MSecClientLoginHandshakeHandler;
 
 import java.io.IOException;
-import java.text.Normalizer;
 import java.util.Map;
 import java.util.Set;
 
@@ -52,8 +51,14 @@ public class ServerIdentityTrustScreen extends Screen {
         this.fingerprintMap = fingerprintMap;
         this.matchingAddresses = matchingAddresses;
         this.serverFingerprint = serverFingerprint;
+        isIdentityChange = this.fingerprintMap.containsKey(this.serverAddressString);
         trustOrUpdateTask = () -> {
             try {
+                if (isIdentityChange) {
+                    MythicWorldSecurity.LOGGER.info("Updating fingerprint of server {} from {} to {} via GUI. Paste verified: {}.", serverAddressString, fingerprintMap.get(serverAddressString).fingerprint(), serverFingerprint, !fingerprintField.getText().isEmpty());
+                } else {
+                    MythicWorldSecurity.LOGGER.info("Trusting server {} with fingerprint {} via GUI. Paste verified: {}.", serverAddressString, serverFingerprint, !fingerprintField.getText().isEmpty());
+                }
                 ClientFingerprintTrustService.addTrustedFingerprint(this.fingerprintMap, this.serverAddressString, this.serverFingerprint, false);
                 ClientFingerprintTrustService.getInstance().writeFileAtomically(this.fingerprintMap);
                 handler.resumeConnection();
@@ -64,7 +69,6 @@ public class ServerIdentityTrustScreen extends Screen {
                 this.connection.disconnect(Text.of("Client error when handling server identity."));
             }
         };
-        isIdentityChange = this.fingerprintMap.containsKey(this.serverAddressString);
     }
 
     public static void switchToTrustScreen(
@@ -84,36 +88,79 @@ public class ServerIdentityTrustScreen extends Screen {
     }
 
     public void setRemainingTime(int remainingTime) {
-        disconnectButton.setMessage(Text.of(String.format("Disconnect (%ds)", remainingTime)));
+        disconnectButton.setMessage(Text.translatable("msec.server_trust.common.disconnect_timed", remainingTime));
     }
 
     @Override
     protected void init() {
-        //TODO Identity change warning screen.
-        layout.getMainPositioner().alignHorizontalCenter().margin(0, 15);
-        layout.add(new TextWidget(Text.of("MSec Server Identity Trust").copyContentOnly().formatted(Formatting.BOLD), textRenderer));
-        layout.getMainPositioner().alignLeft().margin(0, 3);
-        layout.add(new MultilineTextWidget(Text.of("You are connecting to this server for the first time. In order to secure your connection, please verify the fingerprint below: "), textRenderer).setCentered(false).setMaxWidth(Math.min(width - 100, 300)).setTextColor(-1710619));
-        layout.add(new MultilineTextWidget(Text.of(serverFingerprint).copyContentOnly().formatted(Formatting.LIGHT_PURPLE, Formatting.ITALIC), textRenderer).setCentered(false).setMaxWidth(Math.min(width - 100, 300)));
-        layout.add(new MultilineTextWidget(Text.of("Ask the server owner for the fingerprint and compare. If it matches exactly, click [Trust This Server] to resume connecting. Otherwise, click [Disconnect] immediately! Once trusted, this interface won't show up again."), textRenderer).setCentered(false).setMaxWidth(Math.min(width - 100, 300)).setTextColor(-1710619));
-        fingerprintField = new TextFieldWidget(textRenderer, 160, 20, Text.of("Fingerprint"));
+        layout.getMainPositioner().alignHorizontalCenter().margin(0, 0, 0, 20);
+        if (!isIdentityChange) {
+            layout.add(new TextWidget(Text.translatable("msec.server_trust.trust.title").formatted(Formatting.BOLD), textRenderer));
+            layout.getMainPositioner().alignLeft().margin(0, 0, 0, 2);
+            layout.add(new MultilineTextWidget(Text.translatable("msec.server_trust.trust.paragraph_1") , textRenderer).setCentered(false).setMaxWidth(Math.min(width - 80, 320)).setTextColor(-1710619));
+            layout.getMainPositioner().alignLeft().margin(0, 0, 0, 5);
+            layout.add(new MultilineTextWidget(Text.of(serverFingerprint).copyContentOnly().formatted(Formatting.LIGHT_PURPLE), textRenderer).setCentered(false).setMaxWidth(Math.min(width - 80, 320)));
+            if (matchingAddresses.isEmpty()) {
+                layout.getMainPositioner().alignLeft().margin(0, 0, 0, 2);
+            }
+            layout.add(new MultilineTextWidget(Text.translatable("msec.server_trust.trust.paragraph_2"), textRenderer).setCentered(false).setMaxWidth(Math.min(width - 100, 300)).setTextColor(-1710619));
+            if (!matchingAddresses.isEmpty()) {
+                layout.getMainPositioner().margin(0, 0, 0, 2);
+                layout.add(new MultilineTextWidget(Text.translatable("msec.server_trust.trust.paragraph_3"), textRenderer).setCentered(false).setMaxWidth(Math.min(width - 80, 320)).setTextColor(-1710619));
+                StringBuilder stringBuilder = new StringBuilder();
+                for (String address : matchingAddresses) {
+                    stringBuilder.append(address);
+                    stringBuilder.append(", ");
+                }
+                stringBuilder.delete(stringBuilder.length() - 2, stringBuilder.length());
+                layout.add(new MultilineTextWidget(Text.of(stringBuilder.toString()).copyContentOnly().formatted(Formatting.AQUA), textRenderer).setCentered(false).setMaxWidth(Math.min(width - 80, 320)));
+            }
+        } else {
+            layout.add(new TextWidget(Text.translatable("msec.server_trust.update.title").formatted(Formatting.BOLD, Formatting.YELLOW), textRenderer));
+            layout.getMainPositioner().alignLeft().margin(0, 0, 0, 2);
+            layout.add(new MultilineTextWidget(Text.translatable("msec.server_trust.update.paragraph_1"), textRenderer).setCentered(false).setMaxWidth(Math.min(width - 80, 320)).setTextColor(-1710619));
+            layout.getMainPositioner().alignLeft().margin(0, 0, 0, 5);
+            layout.add(new MultilineTextWidget(Text.of(fingerprintMap.get(serverAddressString).fingerprint()).copyContentOnly().formatted(Formatting.GREEN), textRenderer).setCentered(false).setMaxWidth(Math.min(width - 80, 320)));
+            layout.getMainPositioner().alignLeft().margin(0, 0, 0, 2);
+            layout.add(new MultilineTextWidget(Text.translatable("msec.server_trust.update.paragraph_2"), textRenderer).setCentered(false).setMaxWidth(Math.min(width - 80, 320)).setTextColor(-1710619));
+            layout.getMainPositioner().alignLeft().margin(0, 0, 0, 5);
+            layout.add(new MultilineTextWidget(Text.of(serverFingerprint).copyContentOnly().formatted(Formatting.YELLOW), textRenderer).setCentered(false).setMaxWidth(Math.min(width - 80, 320)));
+            layout.add(new MultilineTextWidget(Text.translatable("msec.server_trust.update.paragraph_3"), textRenderer).setCentered(false).setMaxWidth(Math.min(width - 80, 320)).setTextColor(-1710619));
+            DirectionalLayoutWidget serverAddressTextCompound = DirectionalLayoutWidget.horizontal();
+            serverAddressTextCompound.getMainPositioner().margin(0);
+            serverAddressTextCompound.add(new MultilineTextWidget(Text.translatable("msec.server_trust.update.paragraph_4"), textRenderer).setCentered(false).setMaxWidth(Math.min(width - 80, 320)).setTextColor(-1710619));
+            serverAddressTextCompound.add(new MultilineTextWidget(Text.of(serverAddressString).copyContentOnly().formatted(Formatting.AQUA), textRenderer).setCentered(false).setMaxWidth(Math.min(width - 80, 320)));
+            serverAddressTextCompound.refreshPositions();
+            layout.getMainPositioner().alignLeft().margin(0, 0, 0, 2);
+            layout.add(serverAddressTextCompound);
+        }
+        Text trustButtonInsecureMessage;
+        Text trustButtonMatchingMessage;
+        if (!isIdentityChange) {
+            trustButtonInsecureMessage = Text.translatable("msec.server_trust.trust.trust_server");
+            trustButtonMatchingMessage = Text.translatable("msec.server_trust.trust.trust_server").formatted(Formatting.GREEN, Formatting.BOLD);
+        } else {
+            trustButtonInsecureMessage = Text.translatable("msec.server_trust.update.trust_new_insecure").formatted(Formatting.RED);
+            trustButtonMatchingMessage = Text.translatable("msec.server_trust.update.trust_new").formatted(Formatting.YELLOW);
+        }
+        fingerprintField = new TextFieldWidget(textRenderer, 160, 20, Text.of(""));
         fingerprintField.setMaxLength(64);
         fingerprintField.setChangedListener(fingerprint -> {
-            pasteOrClearButton.setMessage(fingerprint.isEmpty() ? Text.of("Paste") : Text.of("Clear"));
+            pasteOrClearButton.setMessage(fingerprint.isEmpty() ? Text.translatable("msec.server_trust.common.paste") : Text.translatable("msec.server_trust.common.clear"));
             if (fingerprint.isEmpty()) {
-                trustButton.setMessage(Text.of("Trust This Server").copyContentOnly());
+                trustButton.setMessage(trustButtonInsecureMessage);
                 trustButton.active = true;
             } else if (serverFingerprint.equalsIgnoreCase(fingerprint)) {
-                trustButton.setMessage(Text.of("Trust This Server").copyContentOnly().formatted(Formatting.GREEN, Formatting.BOLD));
+                trustButton.setMessage(trustButtonMatchingMessage);
                 trustButton.active = true;
             } else {
-                trustButton.setMessage(Text.of("Fingerprint Doesn't Match!"));
+                trustButton.setMessage(Text.translatable("msec.server_trust.common.fingerprint_mismatch").formatted(Formatting.YELLOW));
                 trustButton.active = false;
             }
         });
-        DirectionalLayoutWidget compoundWidget = DirectionalLayoutWidget.horizontal();
-        compoundWidget.getMainPositioner().margin(0);
-        pasteOrClearButton = compoundWidget.add(ButtonWidget.builder(Text.of("Paste"), button -> {
+        DirectionalLayoutWidget fingerprintFieldCompound = DirectionalLayoutWidget.horizontal();
+        fingerprintFieldCompound.getMainPositioner().margin(0);
+        pasteOrClearButton = fingerprintFieldCompound.add(ButtonWidget.builder(Text.translatable("msec.server_trust.common.paste"), button -> {
             if (fingerprintField.getText().isEmpty()) {
                 String clipboardContent = MinecraftClient.getInstance().keyboard.getClipboard().trim();
                 fingerprintField.setText(clipboardContent.substring(0, Math.min(clipboardContent.length(), 64)));
@@ -122,13 +169,13 @@ public class ServerIdentityTrustScreen extends Screen {
                 fingerprintField.setText("");
             }
         }).size(40, 20).build());
-        compoundWidget.add(fingerprintField);
-        compoundWidget.refreshPositions();
-        layout.getMainPositioner().alignHorizontalCenter().margin(0, 7, 0, 1);
-        layout.add(new TextWidget(Text.of("You can paste the fingerprint to verify below.").copyContentOnly().formatted(Formatting.GRAY), textRenderer));
-        layout.getMainPositioner().alignHorizontalCenter().margin(0, 1);
-        layout.add(compoundWidget);
-        trustButton = layout.add(ButtonWidget.builder(Text.of("Trust This Server"),
+        fingerprintFieldCompound.add(fingerprintField);
+        fingerprintFieldCompound.refreshPositions();
+        layout.getMainPositioner().alignHorizontalCenter().margin(0, 8, 0, 2);
+        layout.add(new TextWidget(Text.translatable("msec.server_trust.common.hint"), textRenderer).setTextColor(-3092272));
+        layout.getMainPositioner().alignHorizontalCenter().margin(0,0,0,1);
+        layout.add(fingerprintFieldCompound);
+        trustButton = layout.add(ButtonWidget.builder(trustButtonInsecureMessage,
                         button -> {
                             fingerprintField.active = false;
                             trustButton.active = false;
@@ -136,7 +183,7 @@ public class ServerIdentityTrustScreen extends Screen {
                         })
                 .size(200, 20)
                 .build());
-        disconnectButton = layout.add(ButtonWidget.builder(Text.of("Disconnect"),
+        disconnectButton = layout.add(ButtonWidget.builder(Text.translatable("msec.server_trust.common.disconnect"),
                         button -> {
                             connection.disconnect(ConnectScreen.ABORTED_TEXT);
                             MinecraftClient.getInstance().setScreen(parentScreen);
@@ -170,7 +217,9 @@ public class ServerIdentityTrustScreen extends Screen {
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         super.render(context, mouseX, mouseY, delta);
-        //context.drawCenteredTextWithShadow(textRenderer, Text.of("MSec Server Identity Trust"), width / 2, 20, 16777215);
+        if (fingerprintField.getText().isEmpty()) {
+            context.drawText(textRenderer, Text.translatable("msec.server_trust.common.field_hint"), fingerprintField.getX() + 4, fingerprintField.getY() + 6, -8355712, false);
+        }
     }
 
     @Override

@@ -1,0 +1,21 @@
+{
+  "msec.server_trust.trust.title": "MSec服务器身份信任",
+  "msec.server_trust.trust.paragraph_1": "你正在初次连接此服务器。为了保证你的安全，请比对下面的指纹：",
+  "msec.server_trust.trust.paragraph_2": "请向服主索要指纹并比对。如果完全一致，按[信任此服务器]以继续连接。如果不匹配，请立即按[断开连接]！一旦信任，此界面将不再弹出。",
+  "msec.server_trust.trust.paragraph_3": "此外，以下已知服务器也具有此指纹：",
+  "msec.server_trust.trust.trust_server": "信任此服务器",
+  "msec.server_trust.update.title": "MSec服务器身份更改",
+  "msec.server_trust.update.paragraph_1": "此服务器的指纹由这个已知值：",
+  "msec.server_trust.update.paragraph_2": "变成了这个新值：",
+  "msec.server_trust.update.paragraph_3": "这可能是因为服务器重新部署，也可能是网络攻击引起的。请向服主确认此事并索要新指纹。除非服主明确告知可行，一定不要点击[信任新指纹]！一旦确认，新指纹将覆盖旧指纹。",
+  "msec.server_trust.update.paragraph_4": "当前服务器地址：",
+  "msec.server_trust.update.trust_new": "信任新指纹",
+  "msec.server_trust.update.trust_new_insecure": "信任新指纹（不安全）",
+  "msec.server_trust.common.hint": "你可以在下面粘贴服主提供的指纹以验证。",
+  "msec.server_trust.common.paste": "粘贴",
+  "msec.server_trust.common.clear": "清除",
+  "msec.server_trust.common.field_hint": "请输入或粘贴指纹",
+  "msec.server_trust.common.disconnect": "断开连接",
+  "msec.server_trust.common.disconnect_timed": "断开连接（%ds）",
+  "msec.server_trust.common.fingerprint_mismatch": "指纹不匹配！"
+}

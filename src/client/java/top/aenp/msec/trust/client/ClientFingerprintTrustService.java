@@ -5,6 +5,7 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.JsonOps;
 import top.aenp.msec.MythicWorldSecurity;
+import top.aenp.msec.Utils;
 
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -14,6 +15,7 @@ import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.time.ZonedDateTime;
 import java.util.*;
 import java.util.function.Function;
 
@@ -22,38 +24,7 @@ public class ClientFingerprintTrustService {
     private static ClientFingerprintTrustService instance = null;
     private final Path trustedFingerprintPath;
     private final Path tempFingerprintFilePath;
-    public static final Codec<String> VALIDATED_HOST_STRING_CODEC;
-    public static final Codec<Map<String, TrustedFingerprintEntry>> FINGERPRINT_MAP_CODEC;
-
-    static {
-        Function<String, DataResult<String>> hostStringNormalizer = string -> {
-            String hostname;
-            int port = 25565;
-            String[] segments = string.split(":");
-            switch (segments.length) {
-                case 1 :
-                    hostname = segments[0].toLowerCase(Locale.ROOT);
-                    break;
-                case 2 :
-                    hostname = segments[0].toLowerCase(Locale.ROOT);
-                    try {
-                        port = Integer.parseInt(segments[1]);
-                    } catch (NumberFormatException e) {
-                        return DataResult.error(() -> String.format("Port number cannot be parsed: %s", segments[1]));
-                    }
-                    if (port < 0 || port > 65535) {
-                        int illegalPort = port;
-                        return DataResult.error(() -> String.format("Port number is out of range: %d", illegalPort));
-                    }
-                    break;
-                default:
-                    return DataResult.error(() -> String.format("Illegal host string: %s", string));
-            }
-            return DataResult.success(hostname + ":" + port);
-        };
-        VALIDATED_HOST_STRING_CODEC = Codec.STRING.flatXmap(hostStringNormalizer, hostStringNormalizer);
-        FINGERPRINT_MAP_CODEC = Codec.unboundedMap(VALIDATED_HOST_STRING_CODEC, TrustedFingerprintEntry.CODEC);
-    }
+    public static final Codec<Map<String, TrustedFingerprintEntry>> TRUSTED_FINGERPRINT_MAP_CODEC = Codec.unboundedMap(Utils.VALIDATED_ADDR_STRING_CODEC, TrustedFingerprintEntry.CODEC);
 
     private ClientFingerprintTrustService() {
         trustedFingerprintPath = MythicWorldSecurity.MAIN_DIR.resolve("client").resolve("trusted_servers.json").normalize();
@@ -97,7 +68,7 @@ public class ClientFingerprintTrustService {
         ensureFile();
         try (InputStreamReader inputStreamReader = new InputStreamReader(Files.newInputStream(trustedFingerprintPath))) {
             JsonElement jsonElement = JsonParser.parseReader(inputStreamReader);
-            DataResult<Map<String, TrustedFingerprintEntry>> mapDataResult = FINGERPRINT_MAP_CODEC.parse(JsonOps.INSTANCE, jsonElement);
+            DataResult<Map<String, TrustedFingerprintEntry>> mapDataResult = TRUSTED_FINGERPRINT_MAP_CODEC.parse(JsonOps.INSTANCE, jsonElement);
             if (mapDataResult.isSuccess()) {
                 return new HashMap<>(mapDataResult.getOrThrow());
             } else {
@@ -111,7 +82,7 @@ public class ClientFingerprintTrustService {
     public void writeFileAtomically(Map<String, TrustedFingerprintEntry> map) throws IOException {
         ensureFile();
         Files.deleteIfExists(tempFingerprintFilePath);
-        JsonElement jsonElement = FINGERPRINT_MAP_CODEC.encodeStart(JsonOps.INSTANCE, map).getOrThrow(message -> new IOException(String.format("Failed to encode trusted fingerprint map: %s", message)));
+        JsonElement jsonElement = TRUSTED_FINGERPRINT_MAP_CODEC.encodeStart(JsonOps.INSTANCE, map).getOrThrow(message -> new IOException(String.format("Failed to encode trusted fingerprint map: %s", message)));
         try (OutputStream outputStream = Files.newOutputStream(tempFingerprintFilePath)) {
             outputStream.write(GSON.toJson(jsonElement).getBytes(StandardCharsets.UTF_8));
         }
@@ -134,6 +105,6 @@ public class ClientFingerprintTrustService {
 
     public static void addTrustedFingerprint(Map<String, TrustedFingerprintEntry> map, String host, String fingerprint, boolean fromHttps) {
         fingerprint = fingerprint.toLowerCase(Locale.ROOT);
-        map.put(host, new TrustedFingerprintEntry(fingerprint, fromHttps, Optional.of(System.currentTimeMillis())));
+        map.put(host, new TrustedFingerprintEntry(fingerprint, fromHttps, Optional.of(ZonedDateTime.now())));
     }
 }

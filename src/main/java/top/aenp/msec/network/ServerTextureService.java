@@ -43,7 +43,7 @@ public class ServerTextureService {
         }
     }
 
-    public static byte[] limitedRead(InputStream inputStream, int sizeLimit) throws IOException {
+    private static byte[] limitedRead(InputStream inputStream, int sizeLimit) throws IOException {
         try (ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream()) {
             byte[] buffer = new byte[1024];
             int bytesRead;
@@ -58,7 +58,7 @@ public class ServerTextureService {
         }
     }
 
-    public static int[] packByteArray(byte[] byteArray) {
+    private static int[] packByteArray(byte[] byteArray) {
         if (byteArray.length % 4 != 0) {
             return new int[0];
         }
@@ -70,7 +70,7 @@ public class ServerTextureService {
         return intArray;
     }
 
-    public static BufferedImage decompressTexture(byte[] compressedPixels, int width, int height, int maxWidth, int maxHeight) throws IOException {
+    private static BufferedImage decompressTexture(byte[] compressedPixels, int width, int height, int maxWidth, int maxHeight) throws IOException {
         if (width > maxWidth || height > maxHeight) {
             throw new IOException(String.format("Texture size %d*%d exceeds limit %d*%d.", width, height, maxWidth, maxHeight));
         }

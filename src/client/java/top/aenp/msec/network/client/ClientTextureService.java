@@ -47,7 +47,7 @@ public class ClientTextureService {
     private LocalTextureCache localTextureCache = null;
     private final Object lock = new Object();
 
-    public static BufferedImage fetchBufferedImageFromHttp(String url) throws IOException {
+    private static BufferedImage fetchBufferedImageFromHttp(String url) throws IOException {
         URL textureUrl;
         try {
             textureUrl = URL.of(new URI(url), null);
@@ -85,7 +85,7 @@ public class ClientTextureService {
         }
     }
 
-    public static byte[] unpackIntArray(int[] intArray) {
+    private static byte[] unpackIntArray(int[] intArray) {
         byte[] byteArray = new byte[intArray.length * 4];
         for (int a = 0; a < intArray.length; a++) {
             byteArray[a * 4] = (byte) (intArray[a] >>> 24 & 0xff);
@@ -96,7 +96,7 @@ public class ClientTextureService {
         return byteArray;
     }
 
-    public static byte[] compressBufferedImage(BufferedImage bufferedImage) throws IOException {
+    private static byte[] compressBufferedImage(BufferedImage bufferedImage) throws IOException {
         int width = bufferedImage.getWidth();
         int height = bufferedImage.getHeight();
         int[] intPixelData = bufferedImage.getRGB(0, 0, width, height, null, 0, width);

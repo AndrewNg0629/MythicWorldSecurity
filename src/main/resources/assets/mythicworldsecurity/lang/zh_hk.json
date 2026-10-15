@@ -1,0 +1,21 @@
+{
+  "msec.server_trust.trust.title": "MSec伺服器身份信任",
+  "msec.server_trust.trust.paragraph_1": "你正在初次連線此伺服器。為了保證你的安全，請比對下面的指紋：",
+  "msec.server_trust.trust.paragraph_2": "請向服主索取指紋並比對。如果完全一致，按[信任此伺服器]以繼續連線。如果不匹配，請立即按[中斷連線]！一旦信任，此介面將不再彈出。",
+  "msec.server_trust.trust.paragraph_3": "此外，以下已知伺服器也具有此指紋：",
+  "msec.server_trust.trust.trust_server": "信任此伺服器",
+  "msec.server_trust.update.title": "MSec伺服器身份變更",
+  "msec.server_trust.update.paragraph_1": "此伺服器的指紋已由這個已知值：",
+  "msec.server_trust.update.paragraph_2": "變成了這個新值：",
+  "msec.server_trust.update.paragraph_3": "這可能是因為伺服器重新部署，也可能是網路攻擊所引起的。請向服主確認此事並索取新指紋。除非服主明確告知可行，一定不要點擊[信任新指紋]！一旦確認，新指紋將覆蓋舊指紋。",
+  "msec.server_trust.update.paragraph_4": "目前伺服器地址：",
+  "msec.server_trust.update.trust_new": "信任新指紋",
+  "msec.server_trust.update.trust_new_insecure": "信任新指紋（不安全）",
+  "msec.server_trust.common.hint": "你可以在下面貼上服主提供的指紋以驗證。",
+  "msec.server_trust.common.paste": "貼上",
+  "msec.server_trust.common.clear": "清除",
+  "msec.server_trust.common.field_hint": "請輸入或貼上指紋",
+  "msec.server_trust.common.disconnect": "中斷連線",
+  "msec.server_trust.common.disconnect_timed": "中斷連線（%ds）",
+  "msec.server_trust.common.fingerprint_mismatch": "指紋不匹配！"
+}
