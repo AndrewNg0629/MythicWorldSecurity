@@ -62,6 +62,7 @@ public class ServerIdentityTrustScreen extends Screen {
                 ClientFingerprintTrustService.addTrustedFingerprint(this.fingerprintMap, this.serverAddressString, this.serverFingerprint, false);
                 ClientFingerprintTrustService.getInstance().writeFileAtomically(this.fingerprintMap);
                 handler.resumeConnection();
+                MinecraftClient.getInstance().inGameHud.getChatHud().addMessage(Text.translatable("msec.server_trust.message.connection_secured"));
                 MinecraftClient client = MinecraftClient.getInstance();
                 client.execute(() -> client.setScreen(connectScreen));
             } catch (IOException e) {
@@ -126,13 +127,9 @@ public class ServerIdentityTrustScreen extends Screen {
             layout.getMainPositioner().alignLeft().margin(0, 0, 0, 5);
             layout.add(new MultilineTextWidget(Text.of(serverFingerprint).copyContentOnly().formatted(Formatting.YELLOW), textRenderer).setCentered(false).setMaxWidth(Math.min(width - 80, 320)));
             layout.add(new MultilineTextWidget(Text.translatable("msec.server_trust.update.paragraph_3"), textRenderer).setCentered(false).setMaxWidth(Math.min(width - 80, 320)).setTextColor(-1710619));
-            DirectionalLayoutWidget serverAddressTextCompound = DirectionalLayoutWidget.horizontal();
-            serverAddressTextCompound.getMainPositioner().margin(0);
-            serverAddressTextCompound.add(new MultilineTextWidget(Text.translatable("msec.server_trust.update.paragraph_4"), textRenderer).setCentered(false).setMaxWidth(Math.min(width - 80, 320)).setTextColor(-1710619));
-            serverAddressTextCompound.add(new MultilineTextWidget(Text.of(serverAddressString).copyContentOnly().formatted(Formatting.AQUA), textRenderer).setCentered(false).setMaxWidth(Math.min(width - 80, 320)));
-            serverAddressTextCompound.refreshPositions();
+            layout.add(new MultilineTextWidget(Text.translatable("msec.server_trust.update.server_address", "§b" + serverAddressString + "§r"), textRenderer).setCentered(false).setMaxWidth(Math.min(width - 80, 320)));
+            layout.add(new MultilineTextWidget(Text.translatable("msec.server_trust.update.existing_trust_source", fingerprintMap.get(serverAddressString).fromHttps() ? "§eDNS HTTPS/Direct HTTPS§r" : "§eGUI§r"), textRenderer).setCentered(false).setMaxWidth(Math.min(width - 80, 320)).setTextColor(-1710619));
             layout.getMainPositioner().alignLeft().margin(0, 0, 0, 2);
-            layout.add(serverAddressTextCompound);
         }
         Text trustButtonInsecureMessage;
         Text trustButtonMatchingMessage;

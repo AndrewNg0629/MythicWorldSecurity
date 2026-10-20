@@ -43,14 +43,14 @@ public class ServerTextureService {
         }
     }
 
-    private static byte[] limitedRead(InputStream inputStream, int sizeLimit) throws IOException {
+    private static byte[] limitedRead(InputStream inputStream) throws IOException {
         try (ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream()) {
             byte[] buffer = new byte[1024];
             int bytesRead;
             long totalBytes = 0L;
             while ((bytesRead = inputStream.read(buffer)) != -1) {
-                if ((totalBytes += bytesRead) > sizeLimit) {
-                    throw new IOException(String.format("Input is larger than limit: %d Bytes.", sizeLimit));
+                if ((totalBytes += bytesRead) > 16385) {
+                    throw new IOException("Input is larger than limit: 16385 Bytes.");
                 }
                 byteArrayOutputStream.write(buffer, 0, bytesRead);
             }
@@ -70,16 +70,16 @@ public class ServerTextureService {
         return intArray;
     }
 
-    private static BufferedImage decompressTexture(byte[] compressedPixels, int width, int height, int maxWidth, int maxHeight) throws IOException {
-        if (width > maxWidth || height > maxHeight) {
-            throw new IOException(String.format("Texture size %d*%d exceeds limit %d*%d.", width, height, maxWidth, maxHeight));
+    private static BufferedImage decompressTexture(byte[] compressedPixels, int width, int height) throws IOException {
+        if (width > 64 || height > 64) {
+            throw new IOException(String.format("Texture size %d*%d exceeds limit %d*%d.", width, height, 64, 64));
         }
         try (ZipInputStream zipInputStream = new ZipInputStream(new ByteArrayInputStream(compressedPixels))) {
             ZipEntry entry = zipInputStream.getNextEntry();
             if (entry == null || !entry.getName().equals("pixels")) {
                 throw new IOException("Bad compressed texture data.");
             }
-            byte[] bytePixels = limitedRead(zipInputStream, maxWidth * maxHeight * 4 + 1);
+            byte[] bytePixels = limitedRead(zipInputStream);
             zipInputStream.closeEntry();
             int[] intPixels = packByteArray(bytePixels);
             BufferedImage bufferedImage = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
@@ -186,7 +186,7 @@ public class ServerTextureService {
                 entry.handler.mythicworldsecurity$textureFileWriteCallback(payload.type(), false, null);
                 return;
             }
-            BufferedImage bufferedImage = decompressTexture(payload.data(), payload.width(), payload.height(), 64, 64);
+            BufferedImage bufferedImage = decompressTexture(payload.data(), payload.width(), payload.height());
             byte[] texturePngBytes = encodeBufferedImage(bufferedImage);
             String hash = Utils.hashBytes1(texturePngBytes);
             boolean sizeValid = switch (payload.type()) {

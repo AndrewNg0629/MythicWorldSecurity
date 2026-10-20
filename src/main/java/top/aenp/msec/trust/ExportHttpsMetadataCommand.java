@@ -12,7 +12,6 @@ import net.minecraft.server.command.CommandManager;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.text.Text;
 import top.aenp.msec.MythicWorldSecurity;
-import top.aenp.msec.auth.MSecEd25519Identity;
 
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -99,12 +98,12 @@ public class ExportHttpsMetadataCommand {
                     Files.move(TEMP_METADATA_FILE_PATH, METADATA_FILE_PATH, StandardCopyOption.REPLACE_EXISTING);
                 }
                 context.getSource().sendFeedback(() -> Text.of("Metadata has been successfully written to msec_server_metadata.json."), false);
-                context.getSource().sendFeedback(() -> Text.of("Place this file in your https server and make it accessible at https://server-domain/.well-known/msec/msec_server_metadata.json"), false);
+                context.getSource().sendFeedback(() -> Text.of("To use direct HTTPS mode, make it accessible at https://server-domain/.well-known/msec/msec_server_metadata.json"), false);
             } catch (IOException e) {
                 context.getSource().sendError(Text.of(String.format("Failed to export server metadata: %s", e)));
             }
         };
-        Thread.startVirtualThread(exportMetadataTask).setName("MSec Server Metadata Exporeter");
+        Thread.startVirtualThread(exportMetadataTask).setName("MSec Server Metadata Exporter");
         return 1;
     }
 }

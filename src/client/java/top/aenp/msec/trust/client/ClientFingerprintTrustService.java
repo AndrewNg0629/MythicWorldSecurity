@@ -17,7 +17,6 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.time.ZonedDateTime;
 import java.util.*;
-import java.util.function.Function;
 
 public class ClientFingerprintTrustService {
     public static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();

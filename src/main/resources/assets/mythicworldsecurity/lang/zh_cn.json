@@ -8,7 +8,8 @@
   "msec.server_trust.update.paragraph_1": "此服务器的指纹由这个已知值：",
   "msec.server_trust.update.paragraph_2": "变成了这个新值：",
   "msec.server_trust.update.paragraph_3": "这可能是因为服务器重新部署，也可能是网络攻击引起的。请向服主确认此事并索要新指纹。除非服主明确告知可行，一定不要点击[信任新指纹]！一旦确认，新指纹将覆盖旧指纹。",
-  "msec.server_trust.update.paragraph_4": "当前服务器地址：",
+  "msec.server_trust.update.server_address": "当前服务器地址：%s",
+  "msec.server_trust.update.existing_trust_source": "已有信任源：%s",
   "msec.server_trust.update.trust_new": "信任新指纹",
   "msec.server_trust.update.trust_new_insecure": "信任新指纹（不安全）",
   "msec.server_trust.common.hint": "你可以在下面粘贴服主提供的指纹以验证。",
@@ -17,5 +18,7 @@
   "msec.server_trust.common.field_hint": "请输入或粘贴指纹",
   "msec.server_trust.common.disconnect": "断开连接",
   "msec.server_trust.common.disconnect_timed": "断开连接（%ds）",
-  "msec.server_trust.common.fingerprint_mismatch": "指纹不匹配！"
+  "msec.server_trust.common.fingerprint_mismatch": "指纹不匹配！",
+  "msec.server_trust.message.connection_secured": "你的连接由 §dMSec§r 保护",
+  "msec.server_trust.message.verified_server": "已通过 %s 验证该服务器"
 }

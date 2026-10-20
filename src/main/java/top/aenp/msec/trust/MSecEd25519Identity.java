@@ -1,4 +1,4 @@
-package top.aenp.msec.auth;
+package top.aenp.msec.trust;
 
 import top.aenp.msec.MythicWorldSecurity;
 import top.aenp.mwl.misc.EnvironmentDetector;

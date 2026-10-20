@@ -8,7 +8,8 @@
   "msec.server_trust.update.paragraph_1": "The fingerprint of this server has changed from this known value:",
   "msec.server_trust.update.paragraph_2": "into this new one:",
   "msec.server_trust.update.paragraph_3": "This can be caused by a server re-deployment, or possibly attacks. Please confirm this matter with the server owner and ask for the new fingerprint. Click [Trust New Fingerprint] only if the the owner explicitly says you can do so. Once trusted, the new fingerprint will override the old one.",
-  "msec.server_trust.update.paragraph_4": "Current server address:",
+  "msec.server_trust.update.server_address": "Current server address: %s",
+  "msec.server_trust.update.existing_trust_source": "Existing trust source: %s",
   "msec.server_trust.update.trust_new": "Trust New Fingerprint",
   "msec.server_trust.update.trust_new_insecure": "Trust New Fingerprint (Insecure)",
   "msec.server_trust.common.hint": "You can paste the fingerprint from the owner to verify below.",
@@ -17,5 +18,7 @@
   "msec.server_trust.common.field_hint": "Fingerprint...",
   "msec.server_trust.common.disconnect": "Disconnect",
   "msec.server_trust.common.disconnect_timed": "Disconnect (%ds)",
-  "msec.server_trust.common.fingerprint_mismatch": "Fingerprint doesn't match!"
+  "msec.server_trust.common.fingerprint_mismatch": "Fingerprint doesn't match!",
+  "msec.server_trust.message.connection_secured": "Your connection is §a§lsecured§r§r by §dMSec§r.",
+  "msec.server_trust.message.verified_server": "This server is verified via %s."
 }

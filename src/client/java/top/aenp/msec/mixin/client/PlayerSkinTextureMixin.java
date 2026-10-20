@@ -60,9 +60,9 @@ public abstract class PlayerSkinTextureMixin {
                             textureInputStream = new ByteArrayInputStream(textureData);
                         }
                         MinecraftClient.getInstance().execute(() -> {
-                            NativeImage nativeImage = this.loadTexture(textureInputStream);
+                            NativeImage nativeImage = loadTexture(textureInputStream);
                             if (nativeImage != null) {
-                                this.onTextureLoaded(nativeImage);
+                                onTextureLoaded(nativeImage);
                             }
                         });
                         ClientTextureService.getInstance().failedPlayerTextures.remove(hash);

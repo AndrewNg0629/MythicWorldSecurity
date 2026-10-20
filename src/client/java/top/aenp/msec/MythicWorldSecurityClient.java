@@ -1,13 +1,17 @@
 package top.aenp.msec;
 
 import net.fabricmc.api.ClientModInitializer;
+import org.apache.logging.log4j.core.config.plugins.convert.TypeConverters;
 import top.aenp.msec.auth.YggdrasilApiMetadata;
+import top.aenp.msec.network.MSecNetwork;
 import top.aenp.msec.network.client.ClientTextureService;
+import top.aenp.msec.trust.HttpsMetadataEntry;
 import top.aenp.msec.trust.client.ClientFingerprintTrustService;
-import top.aenp.msec.trust.client.TrustedFingerprintEntry;
 
 import java.io.IOException;
+import java.net.URI;
 import java.util.Map;
+import java.util.Set;
 
 public class MythicWorldSecurityClient implements ClientModInitializer {
 
@@ -15,8 +19,12 @@ public class MythicWorldSecurityClient implements ClientModInitializer {
     public void onInitializeClient() {
         String apiUrl = UtilsClient.digAliYggdrasilURL();
         if (apiUrl != null) {
-            YggdrasilApiMetadata metadata = YggdrasilApiMetadata.fetchApiMetadataWithRetries(apiUrl, null, 5);
-            MythicWorldSecurity.LOGGER.info("Server name: {}. Injected server URL: {}. Homepage: {}. Skin domains: {}.", metadata.metaServerName(), metadata.injectedApiUrl(), metadata.homepageUrl(), metadata.skinDomains());
+            try {
+                YggdrasilApiMetadata metadata = MSecNetwork.fetchIOWithRetries(() -> YggdrasilApiMetadata.fetchApiMetadata(apiUrl, null), "api metadata", 5);
+                MythicWorldSecurity.LOGGER.info("Server name: {}. Injected server URL: {}. Homepage: {}. Skin domains: {}.", metadata.metaServerName(), metadata.injectedApiUrl(), metadata.homepageUrl(), metadata.skinDomains());
+            } catch (IOException e) {
+                MythicWorldSecurity.LOGGER.info("Failed to fetch api metadata.");
+            }
         } else {
             MythicWorldSecurity.LOGGER.info("No Ali");
         }

@@ -15,23 +15,7 @@ import java.util.stream.Collectors;
 
 public record YggdrasilApiMetadata(String metaServerName, String injectedApiUrl, String homepageUrl, Set<String> skinDomains) {
 
-    public static YggdrasilApiMetadata fetchApiMetadataWithRetries(String originalApiUrlString, Proxy proxy, int maxRetries) {
-        for (int i = 1; i <= maxRetries; i++) {
-            try {
-                return fetchApiMetadata(originalApiUrlString, proxy);
-            } catch (IOException e) {
-                MythicWorldSecurity.LOGGER.error("API metadata fetch attempt #{} failed!", i, e);
-                try {
-                    Thread.sleep(1000L * i);
-                } catch (InterruptedException e1) {
-                    throw new RuntimeException(e1);
-                }
-            }
-        }
-        throw new RuntimeException(String.format("Failed to fetch API metadata after %d attempts.", maxRetries));
-    }
-
-    private static YggdrasilApiMetadata fetchApiMetadata(String originalApiUrlString, Proxy proxy) throws IOException {
+    public static YggdrasilApiMetadata fetchApiMetadata(String originalApiUrlString, Proxy proxy) throws IOException {
         originalApiUrlString = addHttpsAndSlash(originalApiUrlString);
         HttpURLConnection originalConnection = null;
         HttpURLConnection redirectedConnection = null;

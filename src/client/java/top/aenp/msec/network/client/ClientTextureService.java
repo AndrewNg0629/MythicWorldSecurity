@@ -250,7 +250,7 @@ public class ClientTextureService {
                         }
                     } catch (IOException e) {
                         entry.connection.disconnect(Text.of("MSec client error."));
-                        MythicWorldSecurity.LOGGER.error("Error exec texture command.", e);
+                        MythicWorldSecurity.LOGGER.error("Error executing texture command.", e);
                     }
                 } catch (InterruptedException e) {
                     break;

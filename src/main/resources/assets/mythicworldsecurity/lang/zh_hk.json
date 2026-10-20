@@ -8,7 +8,8 @@
   "msec.server_trust.update.paragraph_1": "此伺服器的指紋已由這個已知值：",
   "msec.server_trust.update.paragraph_2": "變成了這個新值：",
   "msec.server_trust.update.paragraph_3": "這可能是因為伺服器重新部署，也可能是網路攻擊所引起的。請向服主確認此事並索取新指紋。除非服主明確告知可行，一定不要點擊[信任新指紋]！一旦確認，新指紋將覆蓋舊指紋。",
-  "msec.server_trust.update.paragraph_4": "目前伺服器地址：",
+  "msec.server_trust.update.server_address": "目前伺服器地址：%s",
+  "msec.server_trust.update.existing_trust_source": "既有信任來源：%s",
   "msec.server_trust.update.trust_new": "信任新指紋",
   "msec.server_trust.update.trust_new_insecure": "信任新指紋（不安全）",
   "msec.server_trust.common.hint": "你可以在下面貼上服主提供的指紋以驗證。",
@@ -17,5 +18,7 @@
   "msec.server_trust.common.field_hint": "請輸入或貼上指紋",
   "msec.server_trust.common.disconnect": "中斷連線",
   "msec.server_trust.common.disconnect_timed": "中斷連線（%ds）",
-  "msec.server_trust.common.fingerprint_mismatch": "指紋不匹配！"
+  "msec.server_trust.common.fingerprint_mismatch": "指紋不匹配！",
+  "msec.server_trust.message.connection_secured": "你的連線由 §dMSec§r 保護",
+  "msec.server_trust.message.verified_server": "已透過 %s 驗證該伺服器"
 }

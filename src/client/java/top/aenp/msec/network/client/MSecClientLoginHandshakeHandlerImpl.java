@@ -1,13 +1,17 @@
 package top.aenp.msec.network.client;
 
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ServerAddress;
 import net.minecraft.network.ClientConnection;
 import net.minecraft.network.PacketCallbacks;
 import net.minecraft.network.packet.c2s.login.LoginQueryResponseC2SPacket;
 import net.minecraft.text.Text;
 import org.apache.commons.lang3.Validate;
+import org.apache.http.impl.client.HttpRequestFutureTask;
+import org.apache.http.protocol.HttpRequestHandlerRegistry;
 import top.aenp.msec.MythicWorldSecurity;
-import top.aenp.msec.auth.MSecEd25519Identity;
+import top.aenp.msec.trust.HttpsMetadataEntry;
+import top.aenp.msec.trust.MSecEd25519Identity;
 import top.aenp.msec.network.MSecAESKeySet;
 import top.aenp.msec.network.MSecNetwork;
 import top.aenp.msec.network.interfaces.MSecClientLoginHandshakeHandler;
@@ -29,9 +33,13 @@ import top.aenp.mwl.network.v2.payloads.interfaces.MythicLoginC2SPayload;
 import javax.crypto.Cipher;
 import javax.crypto.KeyAgreement;
 import javax.crypto.NoSuchPaddingException;
+import javax.net.ssl.SSLContext;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.net.URI;
+import java.net.http.HttpClient;
 import java.security.*;
+import java.time.Duration;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
@@ -80,11 +88,38 @@ public class MSecClientLoginHandshakeHandlerImpl implements MSecClientLoginHands
                 Map<String, TrustedFingerprintEntry> fingerprintMap = ClientFingerprintTrustService.getInstance().readFile();
                 Set<String> matchingAddresses = ClientFingerprintTrustService.findHostsByFingerprints(fingerprintMap, serverFingerprint);
                 if (matchingAddresses.contains(serverAddressString)) {
-                    MythicWorldSecurity.LOGGER.info("This server has already been trusted, resuming connection automatically.");
+                    MythicWorldSecurity.LOGGER.info("This server has already been trusted, resuming connection automatically. Trust source: {}", fingerprintMap.get(serverAddressString).fromHttps() ? "DNS HTTPS/Direct HTTPS" : "GUI");
                     resumeConnection();
+                    MinecraftClient.getInstance().inGameHud.getChatHud().addMessage(Text.translatable("msec.server_trust.message.connection_secured"));
                 } else {
-                    //TODO Fetch https identity and trust/update identity automatically. Warn if https identity changes(https is assumed authoritative).
-                    //TODO Switch to screen when HTTPS is unavailable. The screen should warn strongly if identity changes and https is not applicable.
+                    String serverDomain = serverAddress.getAddress();
+                    boolean isIdentityChange = fingerprintMap.containsKey(serverAddressString);
+                    if (payload.dnsHttpsMetaDomains().stream().anyMatch(domain -> domain.equalsIgnoreCase(serverDomain))) {
+                        MythicWorldSecurity.LOGGER.info("Trying to verify the server with DNS HTTPS metadata.");
+                        try {
+                            Set<URI> metadataUriSet = MSecNetwork.fetchIOWithRetries(() -> MSecNetwork.fetchDnsHttpsUrisFromDomain(serverDomain), "DNS HTTPS URIs", 3);
+                            for (URI metadataUri : metadataUriSet) {
+                                if (fetchHttpsMetadataAndCompare(metadataUri, serverAddressString, serverDomain, fingerprintMap, isIdentityChange, true)) {
+                                    return;
+                                }
+                            }
+                        } catch (IOException e) {
+                            MythicWorldSecurity.LOGGER.error("Failed to do metadata trust from DNS HTTPS: {}, skipping.", MSecNetwork.DNS_HTTPS_DOMAIN_PREFIX + serverDomain, e);
+                        }
+                    } else {
+                        MythicWorldSecurity.LOGGER.info("DNS HTTPS metadata is not supported by this server.");
+                    }
+                    if (payload.directHttpsMetaDomains().stream().anyMatch(domain -> domain.equalsIgnoreCase(serverDomain))) {
+                        MythicWorldSecurity.LOGGER.info("Trying to verify the server with direct HTTPS metadata.");
+                        String metadataUriString = "https://" + serverDomain + MSecNetwork.HTTPS_META_PATH;
+                        URI metadataUri = URI.create(metadataUriString);
+                        if (fetchHttpsMetadataAndCompare(metadataUri, serverAddressString, serverDomain, fingerprintMap, isIdentityChange, false)) {
+                            return;
+                        }
+                    } else {
+                        MythicWorldSecurity.LOGGER.info("Direct HTTPS metadata is not supported by this server.");
+                    }
+                    MythicWorldSecurity.LOGGER.info("Falling back to GUI trust.");
                     ServerIdentityTrustScreen.switchToTrustScreen(this, clientConnection, serverAddressString, serverFingerprint, fingerprintMap, matchingAddresses);
                 }
             } catch (IOException e) {
@@ -171,6 +206,37 @@ public class MSecClientLoginHandshakeHandlerImpl implements MSecClientLoginHands
             clientConnection.disconnect(Text.of("Failed to sign transcript."));
             MythicWorldSecurity.LOGGER.error("Failed to sign login transcript: {}", e.toString());
             throw new RuntimeException("Failed to sign login transcript: " + e);
+        }
+    }
+
+    private boolean fetchHttpsMetadataAndCompare(URI metadataUri, String serverAddressString, String serverDomain, Map<String, TrustedFingerprintEntry> fingerprintMap, boolean isIdentityChange, boolean dns) {
+        try {
+            Map<String, HttpsMetadataEntry> metadataMap = MSecNetwork.fetchIOWithRetries(() -> MSecNetwork.fetchMetadataFromUri(metadataUri), "server metadata", 5);
+            HttpsMetadataEntry entry = metadataMap.get(serverAddressString);
+            if (entry != null) {
+                if (serverFingerprint.equalsIgnoreCase(entry.fingerprint())) {
+                    if (isIdentityChange) {
+                        MythicWorldSecurity.LOGGER.warn("Fingerprint of server {} changed, but the new one matches the metadata from {}. Updating fingerprint from {} to {} .", serverAddressString, dns ? MSecNetwork.DNS_HTTPS_DOMAIN_PREFIX + serverDomain : metadataUri, fingerprintMap.get(serverAddressString).fingerprint(), entry.fingerprint());
+                    } else {
+                        MythicWorldSecurity.LOGGER.info("Fingerprint of server {} matches the metadata from {}, adding new trust.", serverAddressString, dns ? MSecNetwork.DNS_HTTPS_DOMAIN_PREFIX + serverDomain : metadataUri);
+                    }
+                    ClientFingerprintTrustService.addTrustedFingerprint(fingerprintMap, serverAddressString, serverFingerprint, true);
+                    ClientFingerprintTrustService.getInstance().writeFileAtomically(fingerprintMap);
+                    resumeConnection();
+                    MinecraftClient.getInstance().inGameHud.getChatHud().addMessage(Text.translatable("msec.server_trust.message.connection_secured"));
+                    MinecraftClient.getInstance().inGameHud.getChatHud().addMessage(Text.translatable("msec.server_trust.message.verified_server", dns ? "§3DNS HTTPS§r" : "§3Direct HTTPS§r"));
+                } else {
+                    MythicWorldSecurity.LOGGER.warn("The fingerprint of server {} doesn't match the metadata from {}! Metadata fingerprint: {}, Server fingerprint: {}, Metadata source: {}", serverAddressString, dns ? MSecNetwork.DNS_HTTPS_DOMAIN_PREFIX + serverDomain : metadataUri, entry.fingerprint(), serverFingerprint, dns ? "DNS HTTPS" : "direct HTTPS");
+                    clientConnection.disconnect(Text.of(String.format("Server fingerprint doesn't match the metadata from %s!", dns ? "DNS HTTPS" : "direct HTTPS")));
+                }
+                return true;
+            } else {
+                MythicWorldSecurity.LOGGER.warn("The metadata of {} was not found from {}.", serverAddressString, dns ? MSecNetwork.DNS_HTTPS_DOMAIN_PREFIX + serverDomain : metadataUri);
+                return false;
+            }
+        } catch (Exception e) {
+            MythicWorldSecurity.LOGGER.error("Failed to do metadata trust from {}: {}, skipping.", dns ? "DNS HTTPS" : "direct HTTPS", dns ? MSecNetwork.DNS_HTTPS_DOMAIN_PREFIX + serverDomain : metadataUri, e);
+            return false;
         }
     }
 }

@@ -13,7 +13,7 @@ import net.minecraft.util.Uuids;
 import org.apache.commons.lang3.Validate;
 import top.aenp.msec.MythicWorldSecurity;
 import top.aenp.msec.Utils;
-import top.aenp.msec.auth.MSecEd25519Identity;
+import top.aenp.msec.trust.MSecEd25519Identity;
 import top.aenp.msec.network.interfaces.MSecServerLoginHandshakeHandler;
 import top.aenp.msec.network.interfaces.SignedPayload;
 import top.aenp.msec.network.payloads.crypto.c2s.LoginIdentityC2SPayload;
@@ -79,7 +79,8 @@ public class MSecServerLoginHandshakeHandlerImpl implements MSecServerLoginHands
         payload.writeMessageAsBytes(byteArrayOutputStream);
         if (payload.clientProtocolVersion() == MSecNetwork.PROTOCOL_VERSION) {
             state = MSecHandshakeState.IDENTITY_EXCHANGE;
-            sendPayload(new LoginIdentityS2CPayload(MSecEd25519Identity.getInstance().publicKey, Set.of()));
+            //sendPayload(new LoginIdentityS2CPayload(MSecEd25519Identity.getInstance().publicKey, Set.of(), Set.of()));
+            sendPayload(new LoginIdentityS2CPayload(MSecEd25519Identity.getInstance().publicKey, Set.of("mc.aenp.top"), Set.of("hkmc.aenp.top")));
             serverLoginNetworkHandler.mythicworldsecurity$setWaitingForTrust(true);
         } else {
             serverLoginNetworkHandler.disconnect(Text.of("Incompatible MSec client version: " + payload.clientModVersion()));

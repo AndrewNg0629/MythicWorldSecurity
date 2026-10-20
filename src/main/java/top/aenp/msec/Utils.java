@@ -28,9 +28,9 @@ public class Utils {
             .registerTypeAdapter(PropertyMap.class, new PropertyMap.Serializer())
             .create();
 
-    public static DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm:ss O");
+    public static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm:ss O");
 
-    public static Codec<ZonedDateTime> DATE_TIME_CODEC = Codec.STRING.comapFlatMap(
+    public static final Codec<ZonedDateTime> DATE_TIME_CODEC = Codec.STRING.comapFlatMap(
             string -> {
                 try {
                     ZonedDateTime zonedDateTime = ZonedDateTime.parse(string, DATE_TIME_FORMATTER);
