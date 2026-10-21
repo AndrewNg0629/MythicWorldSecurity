@@ -9,10 +9,15 @@ import top.aenp.msec.network.payloads.texture.LoginTextureMetadataC2SPayload;
 
 public interface MSecServerLoginHandshakeHandler {
     void onVanillaHello(LoginHelloC2SPacket packet);
+
     void onModVersion(LoginModVersionC2SPayload payload);
+
     void onClientIdentity(LoginIdentityC2SPayload payload);
+
     void onClientX25519(LoginX25519C2SPayload payload);
+
     void onClientSignature(LoginSignatureC2SPayload payload);
+
     void onTextureMetadata(LoginTextureMetadataC2SPayload payload);
 
     enum MSecHandshakeState {

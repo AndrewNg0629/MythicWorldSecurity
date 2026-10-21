@@ -18,8 +18,8 @@ import java.util.Base64;
 
 public class MSecEd25519Identity {
     private static final MessageDigest MESSAGE_DIGEST_SHA_256;
-    private static MSecEd25519Identity INSTANCE = null;
     private static final KeyFactory KEY_FACTORY;
+    private static MSecEd25519Identity INSTANCE = null;
 
     static {
         try {

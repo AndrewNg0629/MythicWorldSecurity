@@ -12,27 +12,28 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import org.jetbrains.annotations.Nullable;
 import top.aenp.msec.MythicWorldSecurity;
-import top.aenp.msec.UtilsClient;
 import top.aenp.msec.network.interfaces.MSecClientLoginHandshakeHandler;
+import top.aenp.mwl.misc.MythicReflectionUtils;
 
 import java.io.IOException;
 import java.util.Map;
 import java.util.Set;
 
 public class ServerIdentityTrustScreen extends Screen {
+    public static final MythicReflectionUtils.ReflectedField<ConnectScreen, Screen> ConnectScreen$parent = new MythicReflectionUtils.ReflectedField<>(ConnectScreen.class, Screen.class, "parent", "field_2412");
     private final Screen parentScreen;
     private final ClientConnection connection;
     private final String serverFingerprint;
     private final DirectionalLayoutWidget layout = DirectionalLayoutWidget.vertical();
-    private TextFieldWidget fingerprintField = null;
-    private ButtonWidget pasteOrClearButton = null;
-    private ButtonWidget trustButton = null;
-    private ButtonWidget disconnectButton = null;
     private final String serverAddressString;
     private final Map<String, TrustedFingerprintEntry> fingerprintMap;
     private final Set<String> matchingAddresses;
     private final boolean isIdentityChange;
     private final Runnable trustOrUpdateTask;
+    private TextFieldWidget fingerprintField = null;
+    private ButtonWidget pasteOrClearButton = null;
+    private ButtonWidget trustButton = null;
+    private ButtonWidget disconnectButton = null;
 
     private ServerIdentityTrustScreen(
             Screen parentScreen,
@@ -82,7 +83,7 @@ public class ServerIdentityTrustScreen extends Screen {
     ) {
         MinecraftClient client = MinecraftClient.getInstance();
         if (client.currentScreen instanceof ConnectScreen connectScreen) {
-            Screen parentScreen = UtilsClient.ConnectScreen$parent.getFieldValue(connectScreen);
+            Screen parentScreen = ConnectScreen$parent.getFieldValue(connectScreen);
             ServerIdentityTrustScreen serverIdentityTrustScreen = new ServerIdentityTrustScreen(parentScreen, connectScreen, handler, connection, serverAddressString, serverFingerprint, fingerprintMap, matchingAddresses);
             client.execute(() -> client.setScreen(serverIdentityTrustScreen));
         }
@@ -98,7 +99,7 @@ public class ServerIdentityTrustScreen extends Screen {
         if (!isIdentityChange) {
             layout.add(new TextWidget(Text.translatable("msec.server_trust.trust.title").formatted(Formatting.BOLD), textRenderer));
             layout.getMainPositioner().alignLeft().margin(0, 0, 0, 2);
-            layout.add(new MultilineTextWidget(Text.translatable("msec.server_trust.trust.paragraph_1") , textRenderer).setCentered(false).setMaxWidth(Math.min(width - 80, 320)).setTextColor(-1710619));
+            layout.add(new MultilineTextWidget(Text.translatable("msec.server_trust.trust.paragraph_1"), textRenderer).setCentered(false).setMaxWidth(Math.min(width - 80, 320)).setTextColor(-1710619));
             layout.getMainPositioner().alignLeft().margin(0, 0, 0, 5);
             layout.add(new MultilineTextWidget(Text.of(serverFingerprint).copyContentOnly().formatted(Formatting.LIGHT_PURPLE), textRenderer).setCentered(false).setMaxWidth(Math.min(width - 80, 320)));
             if (matchingAddresses.isEmpty()) {
@@ -170,7 +171,7 @@ public class ServerIdentityTrustScreen extends Screen {
         fingerprintFieldCompound.refreshPositions();
         layout.getMainPositioner().alignHorizontalCenter().margin(0, 8, 0, 2);
         layout.add(new TextWidget(Text.translatable("msec.server_trust.common.hint"), textRenderer).setTextColor(-3092272));
-        layout.getMainPositioner().alignHorizontalCenter().margin(0,0,0,1);
+        layout.getMainPositioner().alignHorizontalCenter().margin(0, 0, 0, 1);
         layout.add(fingerprintFieldCompound);
         trustButton = layout.add(ButtonWidget.builder(trustButtonInsecureMessage,
                         button -> {

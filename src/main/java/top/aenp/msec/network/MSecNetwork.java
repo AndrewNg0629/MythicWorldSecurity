@@ -41,12 +41,14 @@ import java.util.*;
 
 public class MSecNetwork {
     public static final ArrayList<String> EXTRA_ALLOWED_DOMAINS = new ArrayList<>();
-    private static final KeyFactory X25519_KEY_FACTORY;
     public static final String MSEC_DUMMY_DOMAIN = "msec-placeholder-domain.invalid";
     public static final String TEXTURE_DUMMY_URL_PREFIX = "https://" + MSEC_DUMMY_DOMAIN + "/offline-player-texture/";
     public static final String HTTPS_META_PATH = "/.well-known/msec/msec_server_metadata.json";
     public static final String DNS_HTTPS_DOMAIN_PREFIX = "_msec.";
     public static final HttpClient HTTP_CLIENT;
+    public static final int PROTOCOL_VERSION = 0;
+    private static final KeyFactory X25519_KEY_FACTORY;
+    private static boolean initialized = false;
 
     static {
         try {
@@ -65,8 +67,6 @@ public class MSecNetwork {
         }
     }
 
-    public static final int PROTOCOL_VERSION = 0;
-    private static boolean initialized = false;
     public static void init() {
         if (!initialized) {
             MythicNetwork.INSTANCE.CUSTOM_PAYLOAD_CODECS.put(PlayTextureRequestC2SPayload.ID.id(), PlayTextureRequestC2SPayload.CODEC);
@@ -207,13 +207,8 @@ public class MSecNetwork {
         }
     }
 
-    @FunctionalInterface
-    public interface IOFetchOperation<R> {
-        R fetch() throws IOException;
-    }
-
     public static <R> R fetchIOWithRetries(IOFetchOperation<R> operation, String name, int maxRetries) throws IOException {
-        for (int i = 1; i <= maxRetries; i ++) {
+        for (int i = 1; i <= maxRetries; i++) {
             try {
                 return operation.fetch();
             } catch (IOException e) {
@@ -226,5 +221,10 @@ public class MSecNetwork {
             }
         }
         throw new IOException(String.format("Failed to fetch %s after %d retries.", name, maxRetries));
+    }
+
+    @FunctionalInterface
+    public interface IOFetchOperation<R> {
+        R fetch() throws IOException;
     }
 }

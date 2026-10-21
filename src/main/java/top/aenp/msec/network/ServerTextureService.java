@@ -27,6 +27,55 @@ public class ServerTextureService {
     private final Path cacheDirPath = MythicWorldSecurity.MAIN_DIR.resolve("server").resolve("texture_caches").normalize();
     private final Object lock = new Object();
 
+    @SuppressWarnings("BusyWait")
+    private ServerTextureService() {
+        try {
+            createTextureDirIfAbsent();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        Runnable distributionTask = () -> {
+            while (!Thread.currentThread().isInterrupted()) {
+                try {
+                    RequestEntry entry = requestQueue.take();
+                    PlayTextureResponseS2CPayload payload = computeResponsePayload(entry);
+                    entry.handler.sendPacket(new CustomPayloadS2CPacket(payload));
+                } catch (InterruptedException e) {
+                    break;
+                } catch (Exception e) {
+                    MythicWorldSecurity.LOGGER.error("Exception in texture distribution thread.", e);
+                }
+            }
+        };
+        Runnable collectTask = () -> {
+            while (!Thread.currentThread().isInterrupted()) {
+                try {
+                    SubmissionEntry entry = submissionQueue.take();
+                    collectTexture(entry);
+                } catch (InterruptedException e) {
+                    break;
+                }
+            }
+        };
+        Runnable cacheCleaner = () -> {
+            while (!Thread.currentThread().isInterrupted()) {
+                try {
+                    synchronized (lock) {
+                        inMemoryCache.entrySet().removeIf(stringCacheEntryEntry -> stringCacheEntryEntry.getValue().lastTouched + 180000 <= System.currentTimeMillis());
+                    }
+                    Thread.sleep(60000);
+                } catch (InterruptedException e) {
+                    break;
+                } catch (Exception e) {
+                    MythicWorldSecurity.LOGGER.error("Exception in server texture cache cleaner thread.", e);
+                }
+            }
+        };
+        Thread.startVirtualThread(distributionTask).setName("MSec Texture Distributor");
+        Thread.startVirtualThread(collectTask).setName("MSec Texture Collector");
+        Thread.startVirtualThread(cacheCleaner).setName("MSec Server Cache Cleaner");
+    }
+
     public static ServerTextureService getInstance() {
         if (INSTANCE != null) {
             return INSTANCE;
@@ -92,24 +141,10 @@ public class ServerTextureService {
         }
     }
 
-    private record RequestEntry(ServerPlayNetworkHandler handler, PlayTextureRequestC2SPayload payload) {
-    }
-
-    private record SubmissionEntry(ServerLoginNetworkHandler handler, LoginTextureDataC2SPayload payload) {
-    }
-
-    private static class CacheEntry {
-        private final byte[] cache;
-        private long lastTouched;
-
-        public CacheEntry(byte[] data) {
-            cache = data;
-            lastTouched = System.currentTimeMillis();
-        }
-
-        public byte[] get() {
-            lastTouched = System.currentTimeMillis();
-            return cache;
+    public static byte[] encodeBufferedImage(BufferedImage bufferedImage) throws IOException {
+        try (ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream()) {
+            ImageIO.write(bufferedImage, "PNG", byteArrayOutputStream);
+            return byteArrayOutputStream.toByteArray();
         }
     }
 
@@ -144,13 +179,6 @@ public class ServerTextureService {
         } catch (Exception e) {
             MythicWorldSecurity.LOGGER.warn("Failed to get path for texture {}", hash, e);
             return null;
-        }
-    }
-
-    public static byte[] encodeBufferedImage(BufferedImage bufferedImage) throws IOException {
-        try (ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream()) {
-            ImageIO.write(bufferedImage, "PNG", byteArrayOutputStream);
-            return byteArrayOutputStream.toByteArray();
         }
     }
 
@@ -219,52 +247,24 @@ public class ServerTextureService {
         }
     }
 
-    @SuppressWarnings("BusyWait")
-    private ServerTextureService() {
-        try {
-            createTextureDirIfAbsent();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+    private record RequestEntry(ServerPlayNetworkHandler handler, PlayTextureRequestC2SPayload payload) {
+    }
+
+    private record SubmissionEntry(ServerLoginNetworkHandler handler, LoginTextureDataC2SPayload payload) {
+    }
+
+    private static class CacheEntry {
+        private final byte[] cache;
+        private long lastTouched;
+
+        public CacheEntry(byte[] data) {
+            cache = data;
+            lastTouched = System.currentTimeMillis();
         }
-        Runnable distributionTask = () -> {
-            while (!Thread.currentThread().isInterrupted()) {
-                try {
-                    RequestEntry entry = requestQueue.take();
-                    PlayTextureResponseS2CPayload payload = computeResponsePayload(entry);
-                    entry.handler.sendPacket(new CustomPayloadS2CPacket(payload));
-                } catch (InterruptedException e) {
-                    break;
-                } catch (Exception e) {
-                    MythicWorldSecurity.LOGGER.error("Exception in texture distribution thread.", e);
-                }
-            }
-        };
-        Runnable collectTask = () -> {
-            while (!Thread.currentThread().isInterrupted()) {
-                try {
-                    SubmissionEntry entry = submissionQueue.take();
-                    collectTexture(entry);
-                } catch (InterruptedException e) {
-                    break;
-                }
-            }
-        };
-        Runnable cacheCleaner = () -> {
-            while (!Thread.currentThread().isInterrupted()) {
-                try {
-                    synchronized (lock) {
-                        inMemoryCache.entrySet().removeIf(stringCacheEntryEntry -> stringCacheEntryEntry.getValue().lastTouched + 180000 <= System.currentTimeMillis());
-                    }
-                    Thread.sleep(60000);
-                } catch (InterruptedException e) {
-                    break;
-                } catch (Exception e) {
-                    MythicWorldSecurity.LOGGER.error("Exception in server texture cache cleaner thread.", e);
-                }
-            }
-        };
-        Thread.startVirtualThread(distributionTask).setName("MSec Texture Distributor");
-        Thread.startVirtualThread(collectTask).setName("MSec Texture Collector");
-        Thread.startVirtualThread(cacheCleaner).setName("MSec Server Cache Cleaner");
+
+        public byte[] get() {
+            lastTouched = System.currentTimeMillis();
+            return cache;
+        }
     }
 }

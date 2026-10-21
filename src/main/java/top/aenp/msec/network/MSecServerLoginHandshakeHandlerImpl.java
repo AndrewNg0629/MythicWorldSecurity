@@ -13,7 +13,7 @@ import net.minecraft.util.Uuids;
 import org.apache.commons.lang3.Validate;
 import top.aenp.msec.MythicWorldSecurity;
 import top.aenp.msec.Utils;
-import top.aenp.msec.trust.MSecEd25519Identity;
+import top.aenp.msec.config.ServerConfigManager;
 import top.aenp.msec.network.interfaces.MSecServerLoginHandshakeHandler;
 import top.aenp.msec.network.interfaces.SignedPayload;
 import top.aenp.msec.network.payloads.crypto.c2s.LoginIdentityC2SPayload;
@@ -25,6 +25,7 @@ import top.aenp.msec.network.payloads.crypto.s2c.LoginModVersionS2CPayload;
 import top.aenp.msec.network.payloads.crypto.s2c.LoginSignatureS2CPayload;
 import top.aenp.msec.network.payloads.crypto.s2c.LoginX25519S2CPayload;
 import top.aenp.msec.network.payloads.texture.LoginTextureMetadataC2SPayload;
+import top.aenp.msec.trust.MSecEd25519Identity;
 import top.aenp.mwl.network.v2.MythicNetwork;
 import top.aenp.mwl.network.v2.payloads.interfaces.MythicLoginS2CPayload;
 
@@ -37,7 +38,6 @@ import java.nio.charset.StandardCharsets;
 import java.security.*;
 import java.util.Base64;
 import java.util.HashMap;
-import java.util.Set;
 import java.util.UUID;
 
 public class MSecServerLoginHandshakeHandlerImpl implements MSecServerLoginHandshakeHandler {
@@ -79,8 +79,10 @@ public class MSecServerLoginHandshakeHandlerImpl implements MSecServerLoginHands
         payload.writeMessageAsBytes(byteArrayOutputStream);
         if (payload.clientProtocolVersion() == MSecNetwork.PROTOCOL_VERSION) {
             state = MSecHandshakeState.IDENTITY_EXCHANGE;
-            //sendPayload(new LoginIdentityS2CPayload(MSecEd25519Identity.getInstance().publicKey, Set.of(), Set.of()));
-            sendPayload(new LoginIdentityS2CPayload(MSecEd25519Identity.getInstance().publicKey, Set.of("mc.aenp.top"), Set.of("hkmc.aenp.top")));
+            sendPayload(new LoginIdentityS2CPayload(MSecEd25519Identity.getInstance().publicKey,
+                    ServerConfigManager.getConfig().mutableConfig().dnsHttpsConfig().applicableAddresses(),
+                    ServerConfigManager.getConfig().mutableConfig().directHttpsConfig().applicableAddresses())
+            );
             serverLoginNetworkHandler.mythicworldsecurity$setWaitingForTrust(true);
         } else {
             serverLoginNetworkHandler.disconnect(Text.of("Incompatible MSec client version: " + payload.clientModVersion()));
@@ -142,7 +144,7 @@ public class MSecServerLoginHandshakeHandlerImpl implements MSecServerLoginHands
                     encryptionCipher.init(Cipher.ENCRYPT_MODE, mSecAESKeySet.s2cKey, mSecAESKeySet.s2cIV);
                     clientConnection.setupEncryption(decryptionCipher, encryptionCipher);
                     state = MSecHandshakeState.AUTHENTICATING;
-                } catch (NoSuchPaddingException | InvalidAlgorithmParameterException  e) {
+                } catch (NoSuchPaddingException | InvalidAlgorithmParameterException e) {
                     serverLoginNetworkHandler.disconnect(Text.of("Failed to setup encryption for you."));
                     MythicWorldSecurity.LOGGER.error("Failed to setup encryption for {}: {}", profileName, e.toString());
                 }

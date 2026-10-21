@@ -5,10 +5,11 @@ import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.loader.api.FabricLoader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import top.aenp.msec.trust.MSecEd25519Identity;
+import top.aenp.msec.config.ServerConfigManager;
 import top.aenp.msec.network.MSecNetwork;
 import top.aenp.msec.network.ServerTextureService;
 import top.aenp.msec.trust.ExportHttpsMetadataCommand;
+import top.aenp.msec.trust.MSecEd25519Identity;
 import top.aenp.mwl.misc.EnvironmentDetector;
 
 import java.io.IOException;
@@ -48,6 +49,7 @@ public class MythicWorldSecurity implements ModInitializer {
         MSecNetwork.init();
         MSecEd25519Identity.init();
         if (!EnvironmentDetector.isPhyClient) {
+            ServerConfigManager.init();
             ServerTextureService.init();
         }
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {

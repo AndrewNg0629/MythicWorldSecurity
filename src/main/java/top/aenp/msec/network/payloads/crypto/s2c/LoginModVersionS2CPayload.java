@@ -11,7 +11,8 @@ import top.aenp.mwl.network.v2.payloads.interfaces.MythicLoginS2CPayload;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 
-public record LoginModVersionS2CPayload(String serverModVersion, int serverProtocolVersion) implements MythicLoginS2CPayload, SignedPayload {
+public record LoginModVersionS2CPayload(String serverModVersion,
+                                        int serverProtocolVersion) implements MythicLoginS2CPayload, SignedPayload {
     public static final Identifier ID = Identifier.of("msec", "mod_version_s2c");
     public static final PacketCodec<PacketByteBuf, LoginModVersionS2CPayload> CODEC = new PacketCodec<>() {
         @Override

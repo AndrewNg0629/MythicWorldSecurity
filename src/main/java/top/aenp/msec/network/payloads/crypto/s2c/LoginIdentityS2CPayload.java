@@ -3,9 +3,9 @@ package top.aenp.msec.network.payloads.crypto.s2c;
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.network.codec.PacketCodec;
 import net.minecraft.util.Identifier;
-import top.aenp.msec.trust.MSecEd25519Identity;
 import top.aenp.msec.network.interfaces.MSecClientLoginNetworkHandler;
 import top.aenp.msec.network.interfaces.SignedPayload;
+import top.aenp.msec.trust.MSecEd25519Identity;
 import top.aenp.mwl.network.v2.interfaces.MythicClientLoginNetworkHandler;
 import top.aenp.mwl.network.v2.payloads.interfaces.MythicLoginS2CPayload;
 
@@ -15,7 +15,8 @@ import java.security.PublicKey;
 import java.util.HashSet;
 import java.util.Set;
 
-public record LoginIdentityS2CPayload(PublicKey serverPublicKey, Set<String> dnsHttpsMetaDomains, Set<String> directHttpsMetaDomains) implements MythicLoginS2CPayload, SignedPayload {
+public record LoginIdentityS2CPayload(PublicKey serverPublicKey, Set<String> dnsHttpsMetaDomains,
+                                      Set<String> directHttpsMetaDomains) implements MythicLoginS2CPayload, SignedPayload {
     public static final Identifier ID = Identifier.of("msec", "login_identity_s2c");
     public static final PacketCodec<PacketByteBuf, LoginIdentityS2CPayload> CODEC = new PacketCodec<>() {
         @Override
@@ -32,7 +33,7 @@ public record LoginIdentityS2CPayload(PublicKey serverPublicKey, Set<String> dns
             for (int i = 0; i < directHttpsDomainsCount; i++) {
                 directHttpsMetaDomains.add(buf.readString());
             }
-            return new LoginIdentityS2CPayload(serverPublicKey, dnsHttpsMetaDomains ,directHttpsMetaDomains);
+            return new LoginIdentityS2CPayload(serverPublicKey, dnsHttpsMetaDomains, directHttpsMetaDomains);
         }
 
         @Override

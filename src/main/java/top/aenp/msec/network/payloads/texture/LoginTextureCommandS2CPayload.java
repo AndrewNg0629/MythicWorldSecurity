@@ -8,10 +8,6 @@ import top.aenp.mwl.network.v2.interfaces.MythicClientLoginNetworkHandler;
 import top.aenp.mwl.network.v2.payloads.interfaces.MythicLoginS2CPayload;
 
 public record LoginTextureCommandS2CPayload(Command command) implements MythicLoginS2CPayload {
-    public enum Command {
-        GET_METADATA, GET_SKIN, GET_CAPE
-    }
-
     public static final Identifier ID = Identifier.of("msec", "login_texture_command");
     public static final PacketCodec<PacketByteBuf, LoginTextureCommandS2CPayload> CODEC = new PacketCodec<>() {
         @Override
@@ -33,5 +29,9 @@ public record LoginTextureCommandS2CPayload(Command command) implements MythicLo
     @Override
     public void handle(MythicClientLoginNetworkHandler handler) {
         ((MSecClientLoginNetworkHandler) handler).mythicworldsecurity$onTextureCommand(this);
+    }
+
+    public enum Command {
+        GET_METADATA, GET_SKIN, GET_CAPE
     }
 }

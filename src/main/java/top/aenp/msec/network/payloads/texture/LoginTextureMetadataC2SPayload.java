@@ -8,7 +8,8 @@ import top.aenp.msec.network.interfaces.MSecServerLoginNetworkHandler;
 import top.aenp.mwl.network.v2.interfaces.MythicServerLoginNetworkHandler;
 import top.aenp.mwl.network.v2.payloads.interfaces.MythicLoginC2SPayload;
 
-public record LoginTextureMetadataC2SPayload(String skinHash, boolean slim, String capeHash) implements MythicLoginC2SPayload {
+public record LoginTextureMetadataC2SPayload(String skinHash, boolean slim,
+                                             String capeHash) implements MythicLoginC2SPayload {
     public static final Identifier ID = Identifier.of("msec", "texture_metadata");
     public static final PacketCodec<PacketByteBuf, LoginTextureMetadataC2SPayload> CODEC = new PacketCodec<>() {
         @Override

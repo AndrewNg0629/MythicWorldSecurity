@@ -42,7 +42,7 @@ public class MojangAuthSource implements AuthSource {
             connection.setDoOutput(false);
             connection.connect();
             if (connection.getResponseCode() == 200) {
-                try(InputStreamReader reader = new InputStreamReader(connection.getInputStream())) {
+                try (InputStreamReader reader = new InputStreamReader(connection.getInputStream())) {
                     JsonElement jsonElement = JsonParser.parseReader(reader);
                     String uuidString = jsonElement.getAsJsonObject().get("id").getAsString();
                     return UndashedUuid.fromStringLenient(uuidString);
@@ -69,7 +69,7 @@ public class MojangAuthSource implements AuthSource {
             connection.setDoOutput(false);
             connection.connect();
             if (connection.getResponseCode() == 200) {
-                try(InputStreamReader reader = new InputStreamReader(connection.getInputStream())) {
+                try (InputStreamReader reader = new InputStreamReader(connection.getInputStream())) {
                     JsonElement jsonElement = JsonParser.parseReader(reader);
                     return jsonElement.getAsJsonObject().get("name").getAsString();
                 } catch (JsonParseException e) {

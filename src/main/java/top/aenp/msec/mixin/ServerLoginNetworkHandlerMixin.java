@@ -27,25 +27,21 @@ import top.aenp.mwl.network.v2.MythicNetwork;
 @Mixin(ServerLoginNetworkHandler.class)
 public abstract class ServerLoginNetworkHandlerMixin implements MSecServerLoginNetworkHandler {
     @Shadow
+    String profileName;
+    @Shadow
     @Final
     private ClientConnection connection;
     @Shadow
     @Final
     private MinecraftServer server;
-
-    @Shadow
-    abstract void startVerify(GameProfile profile);
-
-    @Shadow
-    String profileName;
-
-    @Shadow
-    public abstract void disconnect(Text reason);
-
     @Shadow
     private int loginTicks;
     @Unique
     private MSecServerLoginHandshakeHandler mSecServerLoginHandshakeHandler = null;
+    @Unique
+    private boolean isWaitingForTrust = false;
+    @Unique
+    private int trustElapsedTicks = 0;
 //    @Unique
 //    private boolean testSent = false;
 //    @Unique
@@ -53,11 +49,11 @@ public abstract class ServerLoginNetworkHandlerMixin implements MSecServerLoginN
 //    @Unique
 //    private long ts = 0L;
 
-    @Unique
-    private boolean isWaitingForTrust = false;
+    @Shadow
+    abstract void startVerify(GameProfile profile);
 
-    @Unique
-    private int trustElapsedTicks = 0;
+    @Shadow
+    public abstract void disconnect(Text reason);
 
     @Inject(method = "<init>", at = @At(value = "RETURN"))
     private void init(MinecraftServer server, ClientConnection connection, boolean transferred, CallbackInfo info) {

@@ -18,11 +18,11 @@ import java.util.concurrent.CompletableFuture;
 @Mixin(targets = "net.minecraft.client.texture.PlayerSkinProvider$FileCache")
 public abstract class PlayerSkinProviderFileCacheMixin {
     @Shadow
-    protected abstract CompletableFuture<Identifier> store(MinecraftProfileTexture texture);
-
-    @Shadow
     @Final
     private Map<String, CompletableFuture<Identifier>> hashToTexture;
+
+    @Shadow
+    protected abstract CompletableFuture<Identifier> store(MinecraftProfileTexture texture);
 
     @Inject(method = "get", at = @At(value = "INVOKE", target = "Ljava/util/Map;get(Ljava/lang/Object;)Ljava/lang/Object;", shift = At.Shift.AFTER), cancellable = true)
     private void getTextureFuture(MinecraftProfileTexture texture, CallbackInfoReturnable<CompletableFuture<Identifier>> info, @Local String hash) {

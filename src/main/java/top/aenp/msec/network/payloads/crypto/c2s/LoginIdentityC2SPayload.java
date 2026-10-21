@@ -3,9 +3,9 @@ package top.aenp.msec.network.payloads.crypto.c2s;
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.network.codec.PacketCodec;
 import net.minecraft.util.Identifier;
-import top.aenp.msec.trust.MSecEd25519Identity;
 import top.aenp.msec.network.interfaces.MSecServerLoginNetworkHandler;
 import top.aenp.msec.network.interfaces.SignedPayload;
+import top.aenp.msec.trust.MSecEd25519Identity;
 import top.aenp.mwl.network.v2.interfaces.MythicServerLoginNetworkHandler;
 import top.aenp.mwl.network.v2.payloads.interfaces.MythicLoginC2SPayload;
 

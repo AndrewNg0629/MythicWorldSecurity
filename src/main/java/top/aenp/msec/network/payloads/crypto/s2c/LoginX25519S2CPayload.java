@@ -12,7 +12,8 @@ import top.aenp.mwl.network.v2.payloads.interfaces.MythicLoginS2CPayload;
 import java.io.ByteArrayOutputStream;
 import java.security.PublicKey;
 
-public record LoginX25519S2CPayload(PublicKey serverX25519PublicKey, byte[] KDSalt) implements MythicLoginS2CPayload, SignedPayload {
+public record LoginX25519S2CPayload(PublicKey serverX25519PublicKey,
+                                    byte[] KDSalt) implements MythicLoginS2CPayload, SignedPayload {
     public static final Identifier ID = Identifier.of("msec", "login_x25519_s2c");
     public static final PacketCodec<PacketByteBuf, LoginX25519S2CPayload> CODEC = new PacketCodec<>() {
         @Override

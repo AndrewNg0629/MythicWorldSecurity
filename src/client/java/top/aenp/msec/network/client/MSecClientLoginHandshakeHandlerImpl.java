@@ -7,11 +7,7 @@ import net.minecraft.network.PacketCallbacks;
 import net.minecraft.network.packet.c2s.login.LoginQueryResponseC2SPacket;
 import net.minecraft.text.Text;
 import org.apache.commons.lang3.Validate;
-import org.apache.http.impl.client.HttpRequestFutureTask;
-import org.apache.http.protocol.HttpRequestHandlerRegistry;
 import top.aenp.msec.MythicWorldSecurity;
-import top.aenp.msec.trust.HttpsMetadataEntry;
-import top.aenp.msec.trust.MSecEd25519Identity;
 import top.aenp.msec.network.MSecAESKeySet;
 import top.aenp.msec.network.MSecNetwork;
 import top.aenp.msec.network.interfaces.MSecClientLoginHandshakeHandler;
@@ -24,6 +20,8 @@ import top.aenp.msec.network.payloads.crypto.s2c.LoginIdentityS2CPayload;
 import top.aenp.msec.network.payloads.crypto.s2c.LoginModVersionS2CPayload;
 import top.aenp.msec.network.payloads.crypto.s2c.LoginSignatureS2CPayload;
 import top.aenp.msec.network.payloads.crypto.s2c.LoginX25519S2CPayload;
+import top.aenp.msec.trust.HttpsMetadataEntry;
+import top.aenp.msec.trust.MSecEd25519Identity;
 import top.aenp.msec.trust.client.ClientFingerprintTrustService;
 import top.aenp.msec.trust.client.ServerIdentityTrustScreen;
 import top.aenp.msec.trust.client.TrustedFingerprintEntry;
@@ -33,13 +31,10 @@ import top.aenp.mwl.network.v2.payloads.interfaces.MythicLoginC2SPayload;
 import javax.crypto.Cipher;
 import javax.crypto.KeyAgreement;
 import javax.crypto.NoSuchPaddingException;
-import javax.net.ssl.SSLContext;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.URI;
-import java.net.http.HttpClient;
 import java.security.*;
-import java.time.Duration;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
@@ -49,6 +44,7 @@ import static top.aenp.msec.network.interfaces.MSecServerLoginHandshakeHandler.M
 
 public class MSecClientLoginHandshakeHandlerImpl implements MSecClientLoginHandshakeHandler {
     public static final ThreadLocal<ServerAddress> SERVER_ADDRESS_THREAD_LOCAL = new ThreadLocal<>();
+    public final ServerAddress serverAddress;
     private final ClientConnection clientConnection;
     private final Consumer<Text> stateConsumer;
     private final ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
@@ -56,7 +52,6 @@ public class MSecClientLoginHandshakeHandlerImpl implements MSecClientLoginHands
     private MSecAESKeySet mSecAESKeySet = null;
     private PublicKey serverEd25519PublicKey = null;
     private String serverFingerprint = null;
-    public final ServerAddress serverAddress;
 
     public MSecClientLoginHandshakeHandlerImpl(ClientConnection connection, Consumer<Text> stateConsumer) {
         clientConnection = connection;
@@ -94,7 +89,7 @@ public class MSecClientLoginHandshakeHandlerImpl implements MSecClientLoginHands
                 } else {
                     String serverDomain = serverAddress.getAddress();
                     boolean isIdentityChange = fingerprintMap.containsKey(serverAddressString);
-                    if (payload.dnsHttpsMetaDomains().stream().anyMatch(domain -> domain.equalsIgnoreCase(serverDomain))) {
+                    if (payload.dnsHttpsMetaDomains().stream().anyMatch(domain -> domain.equalsIgnoreCase(serverDomain) && MSecNetwork.isDnsHttpsApplicable(serverDomain))) {
                         MythicWorldSecurity.LOGGER.info("Trying to verify the server with DNS HTTPS metadata.");
                         try {
                             Set<URI> metadataUriSet = MSecNetwork.fetchIOWithRetries(() -> MSecNetwork.fetchDnsHttpsUrisFromDomain(serverDomain), "DNS HTTPS URIs", 3);
@@ -109,7 +104,7 @@ public class MSecClientLoginHandshakeHandlerImpl implements MSecClientLoginHands
                     } else {
                         MythicWorldSecurity.LOGGER.info("DNS HTTPS metadata is not supported by this server.");
                     }
-                    if (payload.directHttpsMetaDomains().stream().anyMatch(domain -> domain.equalsIgnoreCase(serverDomain))) {
+                    if (payload.directHttpsMetaDomains().stream().anyMatch(domain -> domain.equalsIgnoreCase(serverDomain) && MSecNetwork.isDirectHttpsApplicable(serverDomain))) {
                         MythicWorldSecurity.LOGGER.info("Trying to verify the server with direct HTTPS metadata.");
                         String metadataUriString = "https://" + serverDomain + MSecNetwork.HTTPS_META_PATH;
                         URI metadataUri = URI.create(metadataUriString);
@@ -172,7 +167,7 @@ public class MSecClientLoginHandshakeHandlerImpl implements MSecClientLoginHands
                     LoginSignatureC2SPayload signatureC2SPayload = new LoginSignatureC2SPayload(signTranscript());
                     state = MSecHandshakeState.AUTHENTICATING;
                     clientConnection.send(new LoginQueryResponseC2SPacket(MythicNetwork.QUERY_ID, signatureC2SPayload), PacketCallbacks.always(() -> clientConnection.setupEncryption(decryptionCipher, encryptionCipher)));
-                } catch (NoSuchPaddingException | InvalidAlgorithmParameterException  e) {
+                } catch (NoSuchPaddingException | InvalidAlgorithmParameterException e) {
                     clientConnection.disconnect(Text.of("Failed to setup encryption for you."));
                     MythicWorldSecurity.LOGGER.error("Failed to setup encryption: {}", e.toString());
                 }

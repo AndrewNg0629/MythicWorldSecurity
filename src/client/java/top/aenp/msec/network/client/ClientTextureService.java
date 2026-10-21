@@ -44,145 +44,8 @@ public class ClientTextureService {
     private final HashMap<String, ClientTextureRequestEntry> textureRequests = new HashMap<>();
     private final LinkedBlockingDeque<PlayTextureResponseS2CPayload> textureResponseQueue = new LinkedBlockingDeque<>();
     private final LinkedBlockingDeque<TextureCommandEntry> textureCommandQueue = new LinkedBlockingDeque<>();
-    private LocalTextureCache localTextureCache = null;
     private final Object lock = new Object();
-
-    private static BufferedImage fetchBufferedImageFromHttp(String url) throws IOException {
-        URL textureUrl;
-        try {
-            textureUrl = URL.of(new URI(url), null);
-        } catch (URISyntaxException e) {
-            throw new IOException(e);
-        }
-        HttpURLConnection connection = (HttpURLConnection) textureUrl.openConnection(MinecraftClient.getInstance().getNetworkProxy());
-        connection.setDoInput(true);
-        connection.setDoOutput(false);
-        connection.connect();
-        connection = Utils.followHttpRedirects(connection, MinecraftClient.getInstance().getNetworkProxy());
-        int responseCode = connection.getResponseCode();
-        if (responseCode >= 200 && responseCode < 400) {
-            try (InputStream inputStream = connection.getInputStream()) {
-                return ImageIO.read(inputStream);
-            }
-        } else {
-            throw new IOException(String.format("Failed to fetch %s", url));
-        }
-    }
-
-    public static ClientTextureService getInstance() {
-        if (INSTANCE != null) {
-            return INSTANCE;
-        } else {
-            throw new IllegalStateException("Client texture service has not been initialized!");
-        }
-    }
-
-    public static void init() {
-        if (INSTANCE == null) {
-            INSTANCE = new ClientTextureService();
-        } else {
-            throw new IllegalStateException("Client texture service has already been initialized!");
-        }
-    }
-
-    private static byte[] unpackIntArray(int[] intArray) {
-        byte[] byteArray = new byte[intArray.length * 4];
-        for (int a = 0; a < intArray.length; a++) {
-            byteArray[a * 4] = (byte) (intArray[a] >>> 24 & 0xff);
-            byteArray[a * 4 + 1] = (byte) (intArray[a] >>> 16 & 0xff);
-            byteArray[a * 4 + 2] = (byte) (intArray[a] >>> 8 & 0xff);
-            byteArray[a * 4 + 3] = (byte) (intArray[a] & 0xff);
-        }
-        return byteArray;
-    }
-
-    private static byte[] compressBufferedImage(BufferedImage bufferedImage) throws IOException {
-        int width = bufferedImage.getWidth();
-        int height = bufferedImage.getHeight();
-        int[] intPixelData = bufferedImage.getRGB(0, 0, width, height, null, 0, width);
-        byte[] bytePixelData = unpackIntArray(intPixelData);
-        try (ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-             ZipOutputStream zipOutputStream = new ZipOutputStream(byteArrayOutputStream)
-        ) {
-            zipOutputStream.setMethod(ZipOutputStream.DEFLATED);
-            zipOutputStream.setLevel(Deflater.DEFAULT_COMPRESSION);
-            zipOutputStream.putNextEntry(new ZipEntry("pixels"));
-            zipOutputStream.write(bytePixelData);
-            zipOutputStream.closeEntry();
-            return byteArrayOutputStream.toByteArray();
-        }
-    }
-
-    private record ClientTextureRequestEntry(CompletableFuture<PlayTextureResponseS2CPayload> future, long requestedOn) {
-    }
-
-    private record TextureCommandEntry(LoginTextureCommandS2CPayload.Command command, ClientConnection connection) {
-    }
-
-    private record LocalTextureCache(BufferedImage skin, boolean slimModel, BufferedImage cape) {
-    }
-
-    public CompletableFuture<PlayTextureResponseS2CPayload> requestTexture(ClientPlayNetworkHandler handler, String hash) {
-        synchronized (lock) {
-            ClientTextureRequestEntry existingEntry = textureRequests.get(hash);
-            if (existingEntry != null) {
-                return existingEntry.future;
-            } else {
-                CompletableFuture<PlayTextureResponseS2CPayload> future = new CompletableFuture<>();
-                textureRequests.put(hash, new ClientTextureRequestEntry(future, System.currentTimeMillis()));
-                handler.getConnection().send(new CustomPayloadC2SPacket(new PlayTextureRequestC2SPayload(hash)));
-                return future;
-            }
-        }
-    }
-
-    private void cacheLocalTexturesIfAbsent() {
-        if (localTextureCache == null) {
-            localTextureCache = new LocalTextureCache(null, false, null);
-            try {
-                MinecraftClient client = MinecraftClient.getInstance();
-                GameProfile profile = client.getGameProfile();
-                Property textureProperty = Iterables.getFirst(profile.getProperties().get("textures"), null);
-                if (textureProperty != null) {
-                    MinecraftTexturesPayload payload = Utils.PROFILE_GSON.fromJson(new String(Base64.getDecoder().decode(textureProperty.value()), StandardCharsets.UTF_8), MinecraftTexturesPayload.class);
-                    Map<MinecraftProfileTexture.Type, MinecraftProfileTexture> textures = payload.textures();
-                    MinecraftProfileTexture skinProfileTexture = textures.get(MinecraftProfileTexture.Type.SKIN);
-                    boolean slim = false;
-                    MinecraftProfileTexture capeProfileTexture = textures.get(MinecraftProfileTexture.Type.CAPE);
-                    BufferedImage skinImage = null;
-                    BufferedImage capeImage = null;
-                    if (skinProfileTexture != null) {
-                        skinImage = fetchBufferedImageFromHttp(skinProfileTexture.getUrl());
-                        String model = skinProfileTexture.getMetadata("model");
-                        if (model != null) {
-                            slim = model.equalsIgnoreCase("slim");
-                        }
-                    }
-                    if (capeProfileTexture != null) {
-                        capeImage = fetchBufferedImageFromHttp(capeProfileTexture.getUrl());
-                    }
-                    localTextureCache = new LocalTextureCache(skinImage, slim, capeImage);
-                }
-            } catch (IOException e) {
-                MythicWorldSecurity.LOGGER.error("Error caching local texture.", e);
-            }
-        }
-    }
-
-    public void onTextureResponse(PlayTextureResponseS2CPayload payload) {
-        textureResponseQueue.add(payload);
-    }
-
-    public void onTextureCommand(LoginTextureCommandS2CPayload payload, ClientConnection connection) {
-        textureCommandQueue.add(new TextureCommandEntry(payload.command(), connection));
-    }
-
-    public static byte[] encodeBufferedImage(BufferedImage bufferedImage) throws IOException {
-        try (ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream()) {
-            ImageIO.write(bufferedImage, "PNG", byteArrayOutputStream);
-            return byteArrayOutputStream.toByteArray();
-        }
-    }
+    private LocalTextureCache localTextureCache = null;
 
     @SuppressWarnings("BusyWait")
     private ClientTextureService() {
@@ -281,5 +144,143 @@ public class ClientTextureService {
         Thread.startVirtualThread(receptionTask).setName("MSec Texture Receiver");
         Thread.startVirtualThread(commandExecTask).setName("MSec Server Texture Command Executor");
         Thread.startVirtualThread(cleaner).setName("MSec Zombie Requests Cleaner");
+    }
+
+    private static BufferedImage fetchBufferedImageFromHttp(String url) throws IOException {
+        URL textureUrl;
+        try {
+            textureUrl = URL.of(new URI(url), null);
+        } catch (URISyntaxException e) {
+            throw new IOException(e);
+        }
+        HttpURLConnection connection = (HttpURLConnection) textureUrl.openConnection(MinecraftClient.getInstance().getNetworkProxy());
+        connection.setDoInput(true);
+        connection.setDoOutput(false);
+        connection.connect();
+        connection = Utils.followHttpRedirects(connection, MinecraftClient.getInstance().getNetworkProxy());
+        int responseCode = connection.getResponseCode();
+        if (responseCode >= 200 && responseCode < 400) {
+            try (InputStream inputStream = connection.getInputStream()) {
+                return ImageIO.read(inputStream);
+            }
+        } else {
+            throw new IOException(String.format("Failed to fetch %s", url));
+        }
+    }
+
+    public static ClientTextureService getInstance() {
+        if (INSTANCE != null) {
+            return INSTANCE;
+        } else {
+            throw new IllegalStateException("Client texture service has not been initialized!");
+        }
+    }
+
+    public static void init() {
+        if (INSTANCE == null) {
+            INSTANCE = new ClientTextureService();
+        } else {
+            throw new IllegalStateException("Client texture service has already been initialized!");
+        }
+    }
+
+    private static byte[] unpackIntArray(int[] intArray) {
+        byte[] byteArray = new byte[intArray.length * 4];
+        for (int a = 0; a < intArray.length; a++) {
+            byteArray[a * 4] = (byte) (intArray[a] >>> 24 & 0xff);
+            byteArray[a * 4 + 1] = (byte) (intArray[a] >>> 16 & 0xff);
+            byteArray[a * 4 + 2] = (byte) (intArray[a] >>> 8 & 0xff);
+            byteArray[a * 4 + 3] = (byte) (intArray[a] & 0xff);
+        }
+        return byteArray;
+    }
+
+    private static byte[] compressBufferedImage(BufferedImage bufferedImage) throws IOException {
+        int width = bufferedImage.getWidth();
+        int height = bufferedImage.getHeight();
+        int[] intPixelData = bufferedImage.getRGB(0, 0, width, height, null, 0, width);
+        byte[] bytePixelData = unpackIntArray(intPixelData);
+        try (ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+             ZipOutputStream zipOutputStream = new ZipOutputStream(byteArrayOutputStream)
+        ) {
+            zipOutputStream.setMethod(ZipOutputStream.DEFLATED);
+            zipOutputStream.setLevel(Deflater.DEFAULT_COMPRESSION);
+            zipOutputStream.putNextEntry(new ZipEntry("pixels"));
+            zipOutputStream.write(bytePixelData);
+            zipOutputStream.closeEntry();
+            return byteArrayOutputStream.toByteArray();
+        }
+    }
+
+    public static byte[] encodeBufferedImage(BufferedImage bufferedImage) throws IOException {
+        try (ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream()) {
+            ImageIO.write(bufferedImage, "PNG", byteArrayOutputStream);
+            return byteArrayOutputStream.toByteArray();
+        }
+    }
+
+    public CompletableFuture<PlayTextureResponseS2CPayload> requestTexture(ClientPlayNetworkHandler handler, String hash) {
+        synchronized (lock) {
+            ClientTextureRequestEntry existingEntry = textureRequests.get(hash);
+            if (existingEntry != null) {
+                return existingEntry.future;
+            } else {
+                CompletableFuture<PlayTextureResponseS2CPayload> future = new CompletableFuture<>();
+                textureRequests.put(hash, new ClientTextureRequestEntry(future, System.currentTimeMillis()));
+                handler.getConnection().send(new CustomPayloadC2SPacket(new PlayTextureRequestC2SPayload(hash)));
+                return future;
+            }
+        }
+    }
+
+    private void cacheLocalTexturesIfAbsent() {
+        if (localTextureCache == null) {
+            localTextureCache = new LocalTextureCache(null, false, null);
+            try {
+                MinecraftClient client = MinecraftClient.getInstance();
+                GameProfile profile = client.getGameProfile();
+                Property textureProperty = Iterables.getFirst(profile.getProperties().get("textures"), null);
+                if (textureProperty != null) {
+                    MinecraftTexturesPayload payload = Utils.PROFILE_GSON.fromJson(new String(Base64.getDecoder().decode(textureProperty.value()), StandardCharsets.UTF_8), MinecraftTexturesPayload.class);
+                    Map<MinecraftProfileTexture.Type, MinecraftProfileTexture> textures = payload.textures();
+                    MinecraftProfileTexture skinProfileTexture = textures.get(MinecraftProfileTexture.Type.SKIN);
+                    boolean slim = false;
+                    MinecraftProfileTexture capeProfileTexture = textures.get(MinecraftProfileTexture.Type.CAPE);
+                    BufferedImage skinImage = null;
+                    BufferedImage capeImage = null;
+                    if (skinProfileTexture != null) {
+                        skinImage = fetchBufferedImageFromHttp(skinProfileTexture.getUrl());
+                        String model = skinProfileTexture.getMetadata("model");
+                        if (model != null) {
+                            slim = model.equalsIgnoreCase("slim");
+                        }
+                    }
+                    if (capeProfileTexture != null) {
+                        capeImage = fetchBufferedImageFromHttp(capeProfileTexture.getUrl());
+                    }
+                    localTextureCache = new LocalTextureCache(skinImage, slim, capeImage);
+                }
+            } catch (IOException e) {
+                MythicWorldSecurity.LOGGER.error("Error caching local texture.", e);
+            }
+        }
+    }
+
+    public void onTextureResponse(PlayTextureResponseS2CPayload payload) {
+        textureResponseQueue.add(payload);
+    }
+
+    public void onTextureCommand(LoginTextureCommandS2CPayload payload, ClientConnection connection) {
+        textureCommandQueue.add(new TextureCommandEntry(payload.command(), connection));
+    }
+
+    private record ClientTextureRequestEntry(CompletableFuture<PlayTextureResponseS2CPayload> future,
+                                             long requestedOn) {
+    }
+
+    private record TextureCommandEntry(LoginTextureCommandS2CPayload.Command command, ClientConnection connection) {
+    }
+
+    private record LocalTextureCache(BufferedImage skin, boolean slimModel, BufferedImage cape) {
     }
 }

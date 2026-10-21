@@ -21,8 +21,11 @@ import java.util.stream.Collectors;
 
 public interface AuthSource {
     UUID getUUIDByName(String name) throws IOException;
+
     String getNameByUUID(UUID uuid) throws IOException;
+
     ProfileResult checkJoined(String name, String apiNonce, InetAddress clientAddress) throws IOException;
+
     List<GameProfile> fetchProfiles(String[] names);
 
     default ProfileResult checkJoinedWithEndpoint(URI sessionEndpoint, String name, String apiNonce, InetAddress clientAddress) throws IOException {
@@ -42,7 +45,7 @@ public interface AuthSource {
             connection.setDoOutput(false);
             connection.connect();
             if (connection.getResponseCode() == 200) {
-                try(InputStreamReader reader = new InputStreamReader(connection.getInputStream())) {
+                try (InputStreamReader reader = new InputStreamReader(connection.getInputStream())) {
                     JsonElement jsonElement = JsonParser.parseReader(reader);
                     HasJoinedMinecraftServerResponse response = Utils.PROFILE_GSON.fromJson(jsonElement, HasJoinedMinecraftServerResponse.class);
                     if (response != null && response.id() != null) {

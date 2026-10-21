@@ -7,7 +7,8 @@ import top.aenp.msec.network.interfaces.MSecServerLoginNetworkHandler;
 import top.aenp.mwl.network.v2.interfaces.MythicServerLoginNetworkHandler;
 import top.aenp.mwl.network.v2.payloads.interfaces.MythicLoginC2SPayload;
 
-public record LoginTextureDataC2SPayload(TextureType type, int width, int height, byte[] data) implements MythicLoginC2SPayload {
+public record LoginTextureDataC2SPayload(TextureType type, int width, int height,
+                                         byte[] data) implements MythicLoginC2SPayload {
     public static final Identifier ID = Identifier.of("msec", "texture_data");
     public static final PacketCodec<PacketByteBuf, LoginTextureDataC2SPayload> CODEC = new PacketCodec<>() {
         @Override
@@ -28,10 +29,6 @@ public record LoginTextureDataC2SPayload(TextureType type, int width, int height
         }
     };
 
-    public enum TextureType {
-        SKIN, CAPE
-    }
-
     @Override
     public Identifier mythicId() {
         return ID;
@@ -40,5 +37,9 @@ public record LoginTextureDataC2SPayload(TextureType type, int width, int height
     @Override
     public void handle(MythicServerLoginNetworkHandler handler) {
         ((MSecServerLoginNetworkHandler) handler).mythicworldsecurity$onTextureData(this);
+    }
+
+    public enum TextureType {
+        SKIN, CAPE
     }
 }

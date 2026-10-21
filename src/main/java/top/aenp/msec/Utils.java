@@ -43,7 +43,31 @@ public class Utils {
     );
 
     public static final Codec<String> VALIDATED_ADDR_STRING_CODEC;
-
+    public static final Function<String, DataResult<String>> HOST_STRING_NORMALIZER = string -> {
+        String hostname;
+        int port = 25565;
+        String[] segments = string.split(":");
+        switch (segments.length) {
+            case 1:
+                hostname = segments[0].toLowerCase(Locale.ROOT);
+                break;
+            case 2:
+                hostname = segments[0].toLowerCase(Locale.ROOT);
+                try {
+                    port = Integer.parseInt(segments[1]);
+                } catch (NumberFormatException e) {
+                    return DataResult.error(() -> String.format("Port number cannot be parsed: %s", segments[1]));
+                }
+                if (port < 0 || port > 65535) {
+                    int illegalPort = port;
+                    return DataResult.error(() -> String.format("Port number is out of range: %d", illegalPort));
+                }
+                break;
+            default:
+                return DataResult.error(() -> String.format("Illegal host string: %s", string));
+        }
+        return DataResult.success(hostname + ":" + port);
+    };
     private static final MessageDigest MESSAGE_DIGEST_SHA1;
 
     static {
@@ -52,32 +76,7 @@ public class Utils {
         } catch (NoSuchAlgorithmException e) {
             throw new RuntimeException(e);
         }
-        Function<String, DataResult<String>> hostStringNormalizer = string -> {
-            String hostname;
-            int port = 25565;
-            String[] segments = string.split(":");
-            switch (segments.length) {
-                case 1 :
-                    hostname = segments[0].toLowerCase(Locale.ROOT);
-                    break;
-                case 2 :
-                    hostname = segments[0].toLowerCase(Locale.ROOT);
-                    try {
-                        port = Integer.parseInt(segments[1]);
-                    } catch (NumberFormatException e) {
-                        return DataResult.error(() -> String.format("Port number cannot be parsed: %s", segments[1]));
-                    }
-                    if (port < 0 || port > 65535) {
-                        int illegalPort = port;
-                        return DataResult.error(() -> String.format("Port number is out of range: %d", illegalPort));
-                    }
-                    break;
-                default:
-                    return DataResult.error(() -> String.format("Illegal host string: %s", string));
-            }
-            return DataResult.success(hostname + ":" + port);
-        };
-        VALIDATED_ADDR_STRING_CODEC = Codec.STRING.flatXmap(hostStringNormalizer, hostStringNormalizer);
+        VALIDATED_ADDR_STRING_CODEC = Codec.STRING.flatXmap(HOST_STRING_NORMALIZER, HOST_STRING_NORMALIZER);
     }
 
     public static String hashBytes1(byte[] data) {

@@ -8,7 +8,8 @@ import java.time.ZonedDateTime;
 import java.util.Map;
 import java.util.Optional;
 
-public record HttpsMetadataEntry(String fingerprint, Optional<String> description, Optional<ZonedDateTime> creationTime) {
+public record HttpsMetadataEntry(String fingerprint, Optional<String> description,
+                                 Optional<ZonedDateTime> creationTime) {
     public static final Codec<HttpsMetadataEntry> CODEC = RecordCodecBuilder.create(
             instance -> instance.group(
                     Codec.STRING.fieldOf("fingerprint").forGetter(HttpsMetadataEntry::fingerprint),

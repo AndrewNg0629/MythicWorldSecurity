@@ -20,10 +20,10 @@ import java.util.*;
 
 public class ClientFingerprintTrustService {
     public static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
+    public static final Codec<Map<String, TrustedFingerprintEntry>> TRUSTED_FINGERPRINT_MAP_CODEC = Codec.unboundedMap(Utils.VALIDATED_ADDR_STRING_CODEC, TrustedFingerprintEntry.CODEC);
     private static ClientFingerprintTrustService instance = null;
     private final Path trustedFingerprintPath;
     private final Path tempFingerprintFilePath;
-    public static final Codec<Map<String, TrustedFingerprintEntry>> TRUSTED_FINGERPRINT_MAP_CODEC = Codec.unboundedMap(Utils.VALIDATED_ADDR_STRING_CODEC, TrustedFingerprintEntry.CODEC);
 
     private ClientFingerprintTrustService() {
         trustedFingerprintPath = MythicWorldSecurity.MAIN_DIR.resolve("client").resolve("trusted_servers.json").normalize();
@@ -50,6 +50,21 @@ public class ClientFingerprintTrustService {
         } else {
             throw new IllegalStateException();
         }
+    }
+
+    public static Set<String> findHostsByFingerprints(Map<String, TrustedFingerprintEntry> map, String fingerprint) {
+        HashSet<String> hosts = new HashSet<>();
+        for (Map.Entry<String, TrustedFingerprintEntry> mapEntry : map.entrySet()) {
+            if (mapEntry.getValue().fingerprint().equalsIgnoreCase(fingerprint)) {
+                hosts.add(mapEntry.getKey());
+            }
+        }
+        return hosts;
+    }
+
+    public static void addTrustedFingerprint(Map<String, TrustedFingerprintEntry> map, String host, String fingerprint, boolean fromHttps) {
+        fingerprint = fingerprint.toLowerCase(Locale.ROOT);
+        map.put(host, new TrustedFingerprintEntry(fingerprint, fromHttps, Optional.of(ZonedDateTime.now())));
     }
 
     private void ensureFile() throws IOException {
@@ -90,20 +105,5 @@ public class ClientFingerprintTrustService {
         } catch (AtomicMoveNotSupportedException e) {
             Files.move(tempFingerprintFilePath, trustedFingerprintPath, StandardCopyOption.REPLACE_EXISTING);
         }
-    }
-
-    public static Set<String> findHostsByFingerprints(Map<String, TrustedFingerprintEntry> map, String fingerprint) {
-        HashSet<String> hosts = new HashSet<>();
-        for (Map.Entry<String, TrustedFingerprintEntry> mapEntry : map.entrySet()) {
-            if (mapEntry.getValue().fingerprint().equalsIgnoreCase(fingerprint)) {
-                hosts.add(mapEntry.getKey());
-            }
-        }
-        return hosts;
-    }
-
-    public static void addTrustedFingerprint(Map<String, TrustedFingerprintEntry> map, String host, String fingerprint, boolean fromHttps) {
-        fingerprint = fingerprint.toLowerCase(Locale.ROOT);
-        map.put(host, new TrustedFingerprintEntry(fingerprint, fromHttps, Optional.of(ZonedDateTime.now())));
     }
 }

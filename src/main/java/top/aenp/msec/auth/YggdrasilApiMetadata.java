@@ -4,7 +4,6 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import com.google.gson.JsonParser;
-import top.aenp.msec.MythicWorldSecurity;
 import top.aenp.msec.Utils;
 
 import java.io.IOException;
@@ -13,7 +12,8 @@ import java.net.*;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-public record YggdrasilApiMetadata(String metaServerName, String injectedApiUrl, String homepageUrl, Set<String> skinDomains) {
+public record YggdrasilApiMetadata(String metaServerName, String injectedApiUrl, String homepageUrl,
+                                   Set<String> skinDomains) {
 
     public static YggdrasilApiMetadata fetchApiMetadata(String originalApiUrlString, Proxy proxy) throws IOException {
         originalApiUrlString = addHttpsAndSlash(originalApiUrlString);
@@ -45,7 +45,7 @@ public record YggdrasilApiMetadata(String metaServerName, String injectedApiUrl,
             if (!(responseCode >= 200 && responseCode < 400)) {
                 throw new IOException(String.format("Failed to request Yggdrasil API: %s, %d", followedConnection.getURL(), followedConnection.getResponseCode()));
             }
-            try(InputStreamReader reader = new InputStreamReader(followedConnection.getInputStream())) {
+            try (InputStreamReader reader = new InputStreamReader(followedConnection.getInputStream())) {
                 String metaServerName = null;
                 String homepageUrl = null;
                 Set<String> skinDomains = null;

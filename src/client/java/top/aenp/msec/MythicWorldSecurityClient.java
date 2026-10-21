@@ -1,17 +1,12 @@
 package top.aenp.msec;
 
 import net.fabricmc.api.ClientModInitializer;
-import org.apache.logging.log4j.core.config.plugins.convert.TypeConverters;
 import top.aenp.msec.auth.YggdrasilApiMetadata;
 import top.aenp.msec.network.MSecNetwork;
 import top.aenp.msec.network.client.ClientTextureService;
-import top.aenp.msec.trust.HttpsMetadataEntry;
 import top.aenp.msec.trust.client.ClientFingerprintTrustService;
 
 import java.io.IOException;
-import java.net.URI;
-import java.util.Map;
-import java.util.Set;
 
 public class MythicWorldSecurityClient implements ClientModInitializer {
 

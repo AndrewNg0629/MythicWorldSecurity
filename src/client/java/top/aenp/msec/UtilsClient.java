@@ -1,9 +1,5 @@
 package top.aenp.msec;
 
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.screen.multiplayer.ConnectScreen;
-import top.aenp.mwl.misc.MythicReflectionUtils;
-
 import java.lang.management.ManagementFactory;
 import java.net.URISyntaxException;
 import java.net.URL;
@@ -11,7 +7,6 @@ import java.nio.file.Paths;
 import java.util.NoSuchElementException;
 
 public class UtilsClient {
-    public static final MythicReflectionUtils.ReflectedField<ConnectScreen, Screen> ConnectScreen$parent = new MythicReflectionUtils.ReflectedField<>(ConnectScreen.class, Screen.class, "parent", "field_2412");
     public static String digAliYggdrasilURL() {
         try {
             Class<?> aliClass = Class.forName("moe.yushi.authlibinjector.AuthlibInjector", false, ClassLoader.getSystemClassLoader());
