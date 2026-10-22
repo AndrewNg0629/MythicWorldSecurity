@@ -5,7 +5,7 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.JsonOps;
 import top.aenp.msec.MythicWorldSecurity;
-import top.aenp.msec.Utils;
+import top.aenp.msec.trust.TrustUtils;
 
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -20,7 +20,7 @@ import java.util.*;
 
 public class ClientFingerprintTrustService {
     public static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
-    public static final Codec<Map<String, TrustedFingerprintEntry>> TRUSTED_FINGERPRINT_MAP_CODEC = Codec.unboundedMap(Utils.VALIDATED_ADDR_STRING_CODEC, TrustedFingerprintEntry.CODEC);
+    public static final Codec<Map<String, TrustedFingerprintEntry>> TRUSTED_FINGERPRINT_MAP_CODEC = Codec.unboundedMap(TrustUtils.VALIDATED_ADDR_STRING_CODEC, TrustedFingerprintEntry.CODEC);
     private static ClientFingerprintTrustService instance = null;
     private final Path trustedFingerprintPath;
     private final Path tempFingerprintFilePath;

@@ -39,6 +39,7 @@ import java.security.*;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 public class MSecServerLoginHandshakeHandlerImpl implements MSecServerLoginHandshakeHandler {
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
@@ -80,8 +81,9 @@ public class MSecServerLoginHandshakeHandlerImpl implements MSecServerLoginHands
         if (payload.clientProtocolVersion() == MSecNetwork.PROTOCOL_VERSION) {
             state = MSecHandshakeState.IDENTITY_EXCHANGE;
             sendPayload(new LoginIdentityS2CPayload(MSecEd25519Identity.getInstance().publicKey,
-                    ServerConfigManager.getConfig().mutableConfig().dnsHttpsConfig().applicableAddresses(),
-                    ServerConfigManager.getConfig().mutableConfig().directHttpsConfig().applicableAddresses())
+                    ServerConfigManager.getConfig().mutableConfig().dnsHttpsConfig().applicableAddresses().stream().map(address -> address.split(":")[0]).collect(Collectors.toSet()),
+                    ServerConfigManager.getConfig().mutableConfig().directHttpsConfig().applicableAddresses().stream().map(address -> address.split(":")[0]).collect(Collectors.toSet())
+                    )
             );
             serverLoginNetworkHandler.mythicworldsecurity$setWaitingForTrust(true);
         } else {

@@ -8,7 +8,7 @@ import org.slf4j.LoggerFactory;
 import top.aenp.msec.config.ServerConfigManager;
 import top.aenp.msec.network.MSecNetwork;
 import top.aenp.msec.network.ServerTextureService;
-import top.aenp.msec.trust.ExportHttpsMetadataCommand;
+import top.aenp.msec.trust.HttpsMetadataCommand;
 import top.aenp.msec.trust.MSecEd25519Identity;
 import top.aenp.mwl.misc.EnvironmentDetector;
 
@@ -54,7 +54,7 @@ public class MythicWorldSecurity implements ModInitializer {
         }
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
             if (!EnvironmentDetector.isPhyClient) {
-                ExportHttpsMetadataCommand.register(dispatcher);
+                HttpsMetadataCommand.register(dispatcher);
             }
         });
     }
