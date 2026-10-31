@@ -1,6 +1,6 @@
 package top.aenp.msec.network.interfaces;
 
-import top.aenp.msec.network.payloads.texture.PlayTextureResponseS2CPayload;
+import top.aenp.msec.network.payloads.texture.s2c.PlayTextureResponseS2CPayload;
 import top.aenp.mwl.network.v2.interfaces.MythicClientPlayNetworkHandler;
 
 public interface MSecClientPlayNetworkHandler extends MythicClientPlayNetworkHandler {

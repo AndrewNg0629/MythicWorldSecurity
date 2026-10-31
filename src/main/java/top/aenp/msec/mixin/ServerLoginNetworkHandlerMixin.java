@@ -19,8 +19,8 @@ import top.aenp.msec.network.ServerTextureService;
 import top.aenp.msec.network.interfaces.MSecServerLoginHandshakeHandler;
 import top.aenp.msec.network.interfaces.MSecServerLoginNetworkHandler;
 import top.aenp.msec.network.payloads.LoginHeartbeatS2CPayload;
-import top.aenp.msec.network.payloads.texture.LoginTextureDataC2SPayload;
-import top.aenp.msec.network.payloads.texture.LoginTextureMetadataC2SPayload;
+import top.aenp.msec.network.payloads.texture.c2s.LoginTextureDataC2SPayload;
+import top.aenp.msec.network.payloads.texture.c2s.LoginTextureMetadataC2SPayload;
 import top.aenp.mwl.misc.EnvironmentDetector;
 import top.aenp.mwl.network.v2.MythicNetwork;
 
@@ -134,5 +134,10 @@ public abstract class ServerLoginNetworkHandlerMixin implements MSecServerLoginN
     @Override
     public void mythicworldsecurity$setWaitingForTrust(boolean isWaitingForTrust) {
         this.isWaitingForTrust = isWaitingForTrust;
+    }
+
+    @Override
+    public MinecraftServer mythicworldsecurity$getServer() {
+        return server;
     }
 }

@@ -6,8 +6,8 @@
   "mixins": [
     "ServerLoginNetworkHandlerMixin",
     "ServerPlayNetworkHandlerMixin",
-    "YggdrasilAuthenticationServiceMixin",
-    "YggdrasilMinecraftSessionServiceMixin"
+    "StringHelperMixin",
+    "YggdrasilAuthenticationServiceMixin"
   ],
   "injectors": {
     "defaultRequire": 1

@@ -42,6 +42,6 @@ public record LoginModVersionC2SPayload(String clientModVersion,
     @Override
     public void writeMessageAsBytes(ByteArrayOutputStream byteArrayOutputStream) {
         byteArrayOutputStream.writeBytes(clientModVersion.getBytes(StandardCharsets.UTF_8));
-        byteArrayOutputStream.write(clientProtocolVersion);
+        byteArrayOutputStream.writeBytes(Integer.toString(clientProtocolVersion).getBytes(StandardCharsets.UTF_8));
     }
 }

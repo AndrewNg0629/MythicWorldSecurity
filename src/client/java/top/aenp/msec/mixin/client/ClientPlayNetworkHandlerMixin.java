@@ -9,7 +9,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import top.aenp.msec.network.client.ClientTextureService;
 import top.aenp.msec.network.interfaces.MSecClientPlayNetworkHandler;
-import top.aenp.msec.network.payloads.texture.PlayTextureResponseS2CPayload;
+import top.aenp.msec.network.payloads.texture.s2c.PlayTextureResponseS2CPayload;
 
 @Mixin(ClientPlayNetworkHandler.class)
 public abstract class ClientPlayNetworkHandlerMixin implements MSecClientPlayNetworkHandler {

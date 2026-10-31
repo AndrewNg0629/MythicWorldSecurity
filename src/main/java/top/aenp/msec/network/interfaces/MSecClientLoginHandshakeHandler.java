@@ -1,5 +1,8 @@
 package top.aenp.msec.network.interfaces;
 
+import top.aenp.msec.network.payloads.auth.s2c.LoginAllowedSkinDomainsS2CPayload;
+import top.aenp.msec.network.payloads.auth.s2c.LoginAuthSourceRequestS2CPayload;
+import top.aenp.msec.network.payloads.auth.s2c.LoginContactEndpointS2CPayload;
 import top.aenp.msec.network.payloads.crypto.s2c.LoginIdentityS2CPayload;
 import top.aenp.msec.network.payloads.crypto.s2c.LoginModVersionS2CPayload;
 import top.aenp.msec.network.payloads.crypto.s2c.LoginSignatureS2CPayload;
@@ -13,6 +16,12 @@ public interface MSecClientLoginHandshakeHandler {
     void onServerX25519(LoginX25519S2CPayload payload);
 
     void onServerSignature(LoginSignatureS2CPayload payload);
+
+    void onAuthSourceRequest(LoginAuthSourceRequestS2CPayload payload);
+
+    void onContactEndpoint(LoginContactEndpointS2CPayload payload);
+
+    void onSkinDomains(LoginAllowedSkinDomainsS2CPayload payload);
 
     void resumeConnection();
 }

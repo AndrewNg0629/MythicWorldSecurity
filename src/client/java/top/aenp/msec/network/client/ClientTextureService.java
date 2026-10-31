@@ -1,10 +1,14 @@
 package top.aenp.msec.network.client;
 
 import com.google.common.collect.Iterables;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.mojang.authlib.GameProfile;
 import com.mojang.authlib.minecraft.MinecraftProfileTexture;
 import com.mojang.authlib.properties.Property;
+import com.mojang.authlib.properties.PropertyMap;
 import com.mojang.authlib.yggdrasil.response.MinecraftTexturesPayload;
+import com.mojang.util.UUIDTypeAdapter;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ClientPlayNetworkHandler;
 import net.minecraft.network.ClientConnection;
@@ -13,7 +17,12 @@ import net.minecraft.network.packet.c2s.login.LoginQueryResponseC2SPacket;
 import net.minecraft.text.Text;
 import top.aenp.msec.MythicWorldSecurity;
 import top.aenp.msec.Utils;
-import top.aenp.msec.network.payloads.texture.*;
+import top.aenp.msec.network.MSecNetwork;
+import top.aenp.msec.network.payloads.texture.c2s.LoginTextureDataC2SPayload;
+import top.aenp.msec.network.payloads.texture.c2s.LoginTextureMetadataC2SPayload;
+import top.aenp.msec.network.payloads.texture.c2s.PlayTextureRequestC2SPayload;
+import top.aenp.msec.network.payloads.texture.s2c.LoginTextureCommandS2CPayload;
+import top.aenp.msec.network.payloads.texture.s2c.PlayTextureResponseS2CPayload;
 import top.aenp.mwl.network.v2.MythicNetwork;
 
 import javax.imageio.ImageIO;
@@ -21,15 +30,12 @@ import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.net.URL;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
-import java.util.Base64;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.LinkedBlockingDeque;
@@ -38,8 +44,12 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
 public class ClientTextureService {
+    private static final Gson PROFILE_GSON = new GsonBuilder()
+            .registerTypeAdapter(GameProfile.class, new GameProfile.Serializer())
+            .registerTypeAdapter(UUID.class, new UUIDTypeAdapter())
+            .registerTypeAdapter(PropertyMap.class, new PropertyMap.Serializer())
+            .create();
     private static ClientTextureService INSTANCE = null;
-
     public final CopyOnWriteArraySet<String> failedPlayerTextures = new CopyOnWriteArraySet<>();
     private final HashMap<String, ClientTextureRequestEntry> textureRequests = new HashMap<>();
     private final LinkedBlockingDeque<PlayTextureResponseS2CPayload> textureResponseQueue = new LinkedBlockingDeque<>();
@@ -147,20 +157,20 @@ public class ClientTextureService {
     }
 
     private static BufferedImage fetchBufferedImageFromHttp(String url) throws IOException {
-        URL textureUrl;
+        HttpResponse<InputStream> response;
         try {
-            textureUrl = URL.of(new URI(url), null);
-        } catch (URISyntaxException e) {
+            URI textureUri = new URI(url);
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(textureUri)
+                    .GET()
+                    .build();
+            response = MSecNetwork.getHttpClient(MinecraftClient.getInstance().getNetworkProxy()).send(request, java.net.http.HttpResponse.BodyHandlers.ofInputStream());
+        } catch (URISyntaxException | InterruptedException e) {
             throw new IOException(e);
         }
-        HttpURLConnection connection = (HttpURLConnection) textureUrl.openConnection(MinecraftClient.getInstance().getNetworkProxy());
-        connection.setDoInput(true);
-        connection.setDoOutput(false);
-        connection.connect();
-        connection = Utils.followHttpRedirects(connection, MinecraftClient.getInstance().getNetworkProxy());
-        int responseCode = connection.getResponseCode();
+        int responseCode = response.statusCode();
         if (responseCode >= 200 && responseCode < 400) {
-            try (InputStream inputStream = connection.getInputStream()) {
+            try (InputStream inputStream = response.body()) {
                 return ImageIO.read(inputStream);
             }
         } else {
@@ -241,7 +251,7 @@ public class ClientTextureService {
                 GameProfile profile = client.getGameProfile();
                 Property textureProperty = Iterables.getFirst(profile.getProperties().get("textures"), null);
                 if (textureProperty != null) {
-                    MinecraftTexturesPayload payload = Utils.PROFILE_GSON.fromJson(new String(Base64.getDecoder().decode(textureProperty.value()), StandardCharsets.UTF_8), MinecraftTexturesPayload.class);
+                    MinecraftTexturesPayload payload = PROFILE_GSON.fromJson(new String(Base64.getDecoder().decode(textureProperty.value()), StandardCharsets.UTF_8), MinecraftTexturesPayload.class);
                     Map<MinecraftProfileTexture.Type, MinecraftProfileTexture> textures = payload.textures();
                     MinecraftProfileTexture skinProfileTexture = textures.get(MinecraftProfileTexture.Type.SKIN);
                     boolean slim = false;

@@ -4,7 +4,7 @@ import net.minecraft.server.network.ServerPlayNetworkHandler;
 import org.spongepowered.asm.mixin.Mixin;
 import top.aenp.msec.network.ServerTextureService;
 import top.aenp.msec.network.interfaces.MSecServerPlayNetworkHandler;
-import top.aenp.msec.network.payloads.texture.PlayTextureRequestC2SPayload;
+import top.aenp.msec.network.payloads.texture.c2s.PlayTextureRequestC2SPayload;
 import top.aenp.mwl.misc.EnvironmentDetector;
 
 @Mixin(ServerPlayNetworkHandler.class)

@@ -1,8 +1,9 @@
 package top.aenp.msec.network.interfaces;
 
 import com.mojang.authlib.GameProfile;
-import top.aenp.msec.network.payloads.texture.LoginTextureDataC2SPayload;
-import top.aenp.msec.network.payloads.texture.LoginTextureMetadataC2SPayload;
+import net.minecraft.server.MinecraftServer;
+import top.aenp.msec.network.payloads.texture.c2s.LoginTextureDataC2SPayload;
+import top.aenp.msec.network.payloads.texture.c2s.LoginTextureMetadataC2SPayload;
 import top.aenp.mwl.network.v2.interfaces.MythicServerLoginNetworkHandler;
 
 public interface MSecServerLoginNetworkHandler extends MythicServerLoginNetworkHandler {
@@ -27,6 +28,10 @@ public interface MSecServerLoginNetworkHandler extends MythicServerLoginNetworkH
     }
 
     default void mythicworldsecurity$setWaitingForTrust(boolean isWaitingTrust) {
+        throw new RuntimeException();
+    }
+
+    default MinecraftServer mythicworldsecurity$getServer() {
         throw new RuntimeException();
     }
 }

@@ -21,7 +21,7 @@ import top.aenp.msec.network.interfaces.MSecClientLoginHandshakeHandler;
 import top.aenp.msec.network.interfaces.MSecClientLoginNetworkHandler;
 import top.aenp.msec.network.payloads.LoginHeartbeatC2SPayload;
 import top.aenp.msec.network.payloads.LoginHeartbeatS2CPayload;
-import top.aenp.msec.network.payloads.texture.LoginTextureCommandS2CPayload;
+import top.aenp.msec.network.payloads.texture.s2c.LoginTextureCommandS2CPayload;
 import top.aenp.msec.trust.client.ServerIdentityTrustScreen;
 import top.aenp.mwl.network.v2.MythicNetwork;
 

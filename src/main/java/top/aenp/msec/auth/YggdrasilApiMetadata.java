@@ -4,52 +4,61 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import com.google.gson.JsonParser;
-import top.aenp.msec.Utils;
+import top.aenp.msec.network.MSecNetwork;
 
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.net.*;
+import java.net.Proxy;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-public record YggdrasilApiMetadata(String metaServerName, String injectedApiUrl, String homepageUrl,
-                                   Set<String> skinDomains) {
+public record YggdrasilApiMetadata(
+        String metaServerName,
+        String apiRootUrl,
+        String homepageUrl,
+        Set<String> skinDomains
+) {
 
     public static YggdrasilApiMetadata fetchApiMetadata(String originalApiUrlString, Proxy proxy) throws IOException {
-        originalApiUrlString = addHttpsAndSlash(originalApiUrlString);
-        HttpURLConnection originalConnection = null;
-        HttpURLConnection redirectedConnection = null;
-        HttpURLConnection followedConnection;
+        if (originalApiUrlString.endsWith("/")) {
+            originalApiUrlString = originalApiUrlString.substring(0, originalApiUrlString.length() - 1);
+        }
+        originalApiUrlString = addHttps(originalApiUrlString);
+        String apiRootUrl = originalApiUrlString;
         try {
-            URL originalApiUrl = URL.of(new URI(originalApiUrlString), null);
-            originalConnection = (HttpURLConnection) (proxy != null ? originalApiUrl.openConnection(proxy) : originalApiUrl.openConnection());
-            originalConnection.setDoOutput(false);
-            originalConnection.setDoInput(true);
-            originalConnection.connect();
-            followedConnection = Utils.followHttpRedirects(originalConnection, proxy);
-            String indicatedApiUrlString = originalConnection.getHeaderField("x-authlib-injector-api-location");
-            if (indicatedApiUrlString != null) {
-                indicatedApiUrlString = addHttpsAndSlash(indicatedApiUrlString);
-                if (!originalApiUrlString.equals(indicatedApiUrlString)) {
-                    originalConnection.disconnect();
-                    URL indicatedApiUrl = URL.of(new URI(indicatedApiUrlString), null);
-                    redirectedConnection = (HttpURLConnection) indicatedApiUrl.openConnection();
-                    redirectedConnection.setDoOutput(false);
-                    redirectedConnection.setDoInput(true);
-                    redirectedConnection.connect();
-                    followedConnection = redirectedConnection;
+            HttpRequest originalRequest = HttpRequest.newBuilder()
+                    .uri(new URI(originalApiUrlString))
+                    .GET()
+                    .build();
+            HttpResponse<String> httpResponse = MSecNetwork.getHttpClient(proxy).send(originalRequest, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            Optional<String> indicatedApiUrlOptional = httpResponse.headers().firstValue("x-authlib-injector-api-location");
+            if (indicatedApiUrlOptional.isPresent()) {
+                String indicatedApiUrlString = addHttps(indicatedApiUrlOptional.get());
+                if (!addHttpsAndSlash(originalApiUrlString).equals(addHttpsAndSlash(indicatedApiUrlString))) {
+                    apiRootUrl = indicatedApiUrlString;
+                    HttpRequest redirectedRequest = HttpRequest.newBuilder()
+                            .uri(new URI(indicatedApiUrlString))
+                            .GET()
+                            .build();
+                    httpResponse = MSecNetwork.getHttpClient(proxy).send(redirectedRequest, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
                 }
             }
-            followedConnection = Utils.followHttpRedirects(followedConnection, proxy);
-            int responseCode = followedConnection.getResponseCode();
+
+            int responseCode = httpResponse.statusCode();
             if (!(responseCode >= 200 && responseCode < 400)) {
-                throw new IOException(String.format("Failed to request Yggdrasil API: %s, %d", followedConnection.getURL(), followedConnection.getResponseCode()));
+                throw new IOException(String.format("Failed to request Yggdrasil API: %s, %d", httpResponse.uri(), responseCode));
             }
-            try (InputStreamReader reader = new InputStreamReader(followedConnection.getInputStream())) {
+            try {
                 String metaServerName = null;
                 String homepageUrl = null;
                 Set<String> skinDomains = null;
-                JsonObject metadataRootJson = JsonParser.parseReader(reader).getAsJsonObject();
+                JsonObject metadataRootJson = JsonParser.parseString(httpResponse.body()).getAsJsonObject();
                 JsonObject metaJson = metadataRootJson.getAsJsonObject("meta");
                 JsonElement metaServerNameJson = metaJson.get("serverName");
                 if (metaServerNameJson != null) {
@@ -70,29 +79,42 @@ public record YggdrasilApiMetadata(String metaServerName, String injectedApiUrl,
                             .map(jsonElement -> jsonElement.getAsJsonPrimitive().getAsString())
                             .collect(Collectors.toSet());
                 }
-                return new YggdrasilApiMetadata(metaServerName, originalApiUrlString, homepageUrl, skinDomains);
+                return new YggdrasilApiMetadata(metaServerName, apiRootUrl, homepageUrl, skinDomains);
             } catch (Exception e) {
                 throw new IOException("Failed to parse API metadata.", e);
             }
-        } catch (URISyntaxException | JsonParseException e) {
+        } catch (URISyntaxException | JsonParseException | InterruptedException e) {
             throw new IOException("Failed to fetch Yggdrasil API metadata.", e);
-        } finally {
-            if (originalConnection != null) {
-                originalConnection.disconnect();
-            }
-            if (redirectedConnection != null) {
-                redirectedConnection.disconnect();
-            }
         }
     }
 
-    private static String addHttpsAndSlash(String url) {
+    private static String addHttps(String url) {
         if (!(url.startsWith("http://") || url.startsWith("https://"))) {
             url = "https://" + url;
         }
+        return url;
+    }
+
+    private static String addHttpsAndSlash(String url) {
+        url = addHttps(url);
         if (!url.endsWith("/")) {
             url = url + "/";
         }
         return url;
+    }
+
+    public static boolean equals(YggdrasilApiMetadata meta1, YggdrasilApiMetadata meta2) {
+        if (Objects.equals(meta1, meta2)) {
+            return true;
+        }
+        if (meta1 == null || meta2 == null) {
+            return false;
+        }
+        Set<String> akinDomains1 = meta1.skinDomains.stream().map(YggdrasilApiMetadata::addHttpsAndSlash).collect(Collectors.toSet());
+        Set<String> akinDomains2 = meta2.skinDomains.stream().map(YggdrasilApiMetadata::addHttpsAndSlash).collect(Collectors.toSet());
+        return meta1.metaServerName.equals(meta2.metaServerName)
+                && addHttpsAndSlash(meta1.apiRootUrl).equals(addHttpsAndSlash(meta2.apiRootUrl))
+                && addHttpsAndSlash(meta1.homepageUrl).equals(addHttpsAndSlash(meta2.homepageUrl))
+                && akinDomains1.equals(akinDomains2);
     }
 }

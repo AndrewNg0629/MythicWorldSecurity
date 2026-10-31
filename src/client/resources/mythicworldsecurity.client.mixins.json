@@ -7,9 +7,9 @@
     "ClientLoginNetworkHandlerMixin",
     "ClientPlayNetworkHandlerMixin",
     "ConnectScreenConnectorThreadMixin",
-    "MinecraftClientMixin",
     "PlayerSkinProviderFileCacheMixin",
-    "PlayerSkinTextureMixin"
+    "PlayerSkinTextureMixin",
+    "YggdrasilAuthenticationServiceMixin"
   ],
   "injectors": {
     "defaultRequire": 1

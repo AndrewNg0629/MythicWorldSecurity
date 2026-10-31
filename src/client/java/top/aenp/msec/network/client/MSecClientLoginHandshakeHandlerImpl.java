@@ -1,5 +1,7 @@
 package top.aenp.msec.network.client;
 
+import com.mojang.authlib.exceptions.AuthenticationException;
+import com.mojang.authlib.minecraft.MinecraftSessionService;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ServerAddress;
 import net.minecraft.network.ClientConnection;
@@ -8,10 +10,17 @@ import net.minecraft.network.packet.c2s.login.LoginQueryResponseC2SPacket;
 import net.minecraft.text.Text;
 import org.apache.commons.lang3.Validate;
 import top.aenp.msec.MythicWorldSecurity;
+import top.aenp.msec.auth.YggdrasilApiMetadata;
+import top.aenp.msec.auth.client.ClientAuthUtils;
 import top.aenp.msec.network.MSecAESKeySet;
 import top.aenp.msec.network.MSecNetwork;
 import top.aenp.msec.network.interfaces.MSecClientLoginHandshakeHandler;
 import top.aenp.msec.network.interfaces.SignedPayload;
+import top.aenp.msec.network.payloads.auth.c2s.LoginAuthSourceResponseC2SPayload;
+import top.aenp.msec.network.payloads.auth.c2s.LoginContactFinishC2SPayload;
+import top.aenp.msec.network.payloads.auth.s2c.LoginAllowedSkinDomainsS2CPayload;
+import top.aenp.msec.network.payloads.auth.s2c.LoginAuthSourceRequestS2CPayload;
+import top.aenp.msec.network.payloads.auth.s2c.LoginContactEndpointS2CPayload;
 import top.aenp.msec.network.payloads.crypto.c2s.LoginIdentityC2SPayload;
 import top.aenp.msec.network.payloads.crypto.c2s.LoginModVersionC2SPayload;
 import top.aenp.msec.network.payloads.crypto.c2s.LoginSignatureC2SPayload;
@@ -169,6 +178,7 @@ public class MSecClientLoginHandshakeHandlerImpl implements MSecClientLoginHands
                     LoginSignatureC2SPayload signatureC2SPayload = new LoginSignatureC2SPayload(signTranscript());
                     state = MSecHandshakeState.AUTHENTICATING;
                     clientConnection.send(new LoginQueryResponseC2SPacket(MythicNetwork.QUERY_ID, signatureC2SPayload), PacketCallbacks.always(() -> clientConnection.setupEncryption(decryptionCipher, encryptionCipher)));
+                    state = MSecHandshakeState.SOURCE_DETERMINATION;
                 } catch (NoSuchPaddingException | InvalidAlgorithmParameterException e) {
                     clientConnection.disconnect(Text.of("Failed to setup encryption for you."));
                     MythicWorldSecurity.LOGGER.error("Failed to setup encryption: {}", e.toString());
@@ -178,6 +188,47 @@ public class MSecClientLoginHandshakeHandlerImpl implements MSecClientLoginHands
             clientConnection.disconnect(Text.of("Failed to validate server signature."));
             MythicWorldSecurity.LOGGER.error("Failed to validate server signature: {}", e.toString());
         }
+    }
+
+    @Override
+    public void onAuthSourceRequest(LoginAuthSourceRequestS2CPayload payload) {
+        Validate.validState(state == MSecHandshakeState.SOURCE_DETERMINATION, "Unexpected auth source request payload!");
+        stateConsumer.accept(Text.translatable("connect.authorizing"));
+        LoginAuthSourceResponseC2SPayload response;
+        YggdrasilApiMetadata yggdrasilApiMetadata = ClientAuthUtils.getYggdrasilApiMetadata();
+        if (yggdrasilApiMetadata != null) {
+            response = new LoginAuthSourceResponseC2SPayload(LoginAuthSourceResponseC2SPayload.AuthSourceType.YGGDRASIL, yggdrasilApiMetadata);
+        } else {
+            response = new LoginAuthSourceResponseC2SPayload(ClientAuthUtils.isMojangLogin() ? LoginAuthSourceResponseC2SPayload.AuthSourceType.MOJANG : LoginAuthSourceResponseC2SPayload.AuthSourceType.OFFLINE, null);
+        }
+        state = MSecHandshakeState.AUTHENTICATING;
+        sendPayload(response);
+    }
+
+    @Override
+    public void onContactEndpoint(LoginContactEndpointS2CPayload payload) {
+        Validate.validState(state == MSecHandshakeState.AUTHENTICATING, "Unexpected contact endpoint payload!");
+        Runnable contactApiTask = () -> {
+            MinecraftClient minecraftClient = MinecraftClient.getInstance();
+            MinecraftSessionService sessionService = minecraftClient.getSessionService();
+            try {
+                sessionService.joinServer(minecraftClient.getSession().getUuidOrNull(), minecraftClient.getSession().getAccessToken(), payload.apiNonce());
+                state = MSecHandshakeState.SUCCESS;
+                sendPayload(new LoginContactFinishC2SPayload());
+            } catch (AuthenticationException e) {
+                MythicWorldSecurity.LOGGER.error("Exception joining server.", e);
+                clientConnection.disconnect(Text.of("Exception joining server."));
+            }
+        };
+        Thread.startVirtualThread(contactApiTask).setName("Endpoint Contactor");
+    }
+
+    @Override
+    public void onSkinDomains(LoginAllowedSkinDomainsS2CPayload payload) {
+        Validate.validState(state == MSecHandshakeState.SUCCESS, "Unexpected skin domains payload!");
+        MSecNetwork.EXTRA_ALLOWED_DOMAINS.clear();
+        MSecNetwork.EXTRA_ALLOWED_DOMAINS.add(MSecNetwork.MSEC_DUMMY_DOMAIN);
+        MSecNetwork.EXTRA_ALLOWED_DOMAINS.addAll(payload.allowedSkinDomains());
     }
 
     @Override
@@ -208,7 +259,7 @@ public class MSecClientLoginHandshakeHandlerImpl implements MSecClientLoginHands
 
     private boolean fetchHttpsMetadataAndCompare(URI metadataUri, String serverAddressString, String serverDomain, Map<String, TrustedFingerprintEntry> fingerprintMap, boolean isIdentityChange, boolean dns) {
         try {
-            Map<String, HttpsMetadataEntry> metadataMap = MSecNetwork.fetchIOWithRetries(() -> TrustUtils.fetchMetadataFromUri(metadataUri), "server metadata", 5);
+            Map<String, HttpsMetadataEntry> metadataMap = MSecNetwork.fetchIOWithRetries(() -> TrustUtils.fetchServerMetadataFromUri(metadataUri), "server metadata", 5);
             HttpsMetadataEntry entry = metadataMap.get(serverAddressString);
             if (entry != null) {
                 if (serverFingerprint.equalsIgnoreCase(entry.fingerprint())) {

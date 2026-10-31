@@ -1,5 +1,9 @@
 package top.aenp.msec.config;
 
+import com.google.common.collect.BiMap;
+import com.google.common.collect.ImmutableBiMap;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
@@ -7,12 +11,17 @@ import com.google.gson.JsonParser;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.JsonOps;
 import top.aenp.msec.MythicWorldSecurity;
+import top.aenp.msec.auth.AuthSourceSuffixInfo;
+import top.aenp.msec.auth.YggdrasilApiMetadata;
+import top.aenp.msec.network.MSecNetwork;
 
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.file.*;
-import java.util.Objects;
+import java.util.*;
+
+import static top.aenp.msec.config.ServerConfig.BootstrapConfig.YggdrasilAuthSourceUnit;
 
 public class ServerConfigManager {
     public static final int CONFIG_VERSION = 0;
@@ -20,7 +29,7 @@ public class ServerConfigManager {
     private static final Path CONFIG_FILE_PATH;
     private static final Path DEFAULT_CONFIG_FILE_PATH;
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
-    private static volatile ServerConfigManager instance = new ServerConfigManager(ServerConfig.DEFAULT_INSTANCE);
+    private static volatile ServerConfigManager instance = new ServerConfigManager(ServerConfig.DEFAULT_INSTANCE, ImmutableBiMap.of());
     private static volatile boolean initialized = false;
 
     static {
@@ -30,13 +39,57 @@ public class ServerConfigManager {
     }
 
     private final ServerConfig.BootstrapConfig bootstrapConfig;
+    private final ImmutableSet<String> allSkinDomains;
+    private final ImmutableMap<YggdrasilApiMetadata, AuthSourceSuffixInfo> yggdrasilSuffixInfoMap;
+    private final ImmutableBiMap<YggdrasilApiMetadata, String> yggdrasilConfigNameMap;
+    private final AuthSourceSuffixInfo mojangSuffixInfo;
+    private final String suffixExemptedSourceName;
     private volatile ServerConfig configFromFile;
     private volatile ServerConfig combinedConfig;
     private boolean initialConfigSucceeded = false;
 
-    private ServerConfigManager(ServerConfig initialConfig) {
+    private ServerConfigManager(ServerConfig initialConfig, ImmutableBiMap<YggdrasilAuthSourceUnit, YggdrasilApiMetadata> yggdrasilApiMetadataMap) {
         bootstrapConfig = initialConfig.bootstrapConfig();
         configFromFile = initialConfig;
+
+        suffixExemptedSourceName = initialConfig.bootstrapConfig().commonSuffixConfig().suffixExemptedSource().toLowerCase(Locale.ROOT);
+
+        ImmutableSet.Builder<String> skinDomainSetBuilder = ImmutableSet.builder();
+        skinDomainSetBuilder.add(MSecNetwork.MSEC_DUMMY_DOMAIN);
+        for (YggdrasilApiMetadata metadata : yggdrasilApiMetadataMap.inverse().keySet()) {
+            skinDomainSetBuilder.addAll(metadata.skinDomains());
+        }
+        allSkinDomains = skinDomainSetBuilder.build();
+
+        ImmutableMap.Builder<YggdrasilApiMetadata, AuthSourceSuffixInfo> suffixInfoMapBuilder = ImmutableMap.builder();
+        for (Map.Entry<YggdrasilAuthSourceUnit, YggdrasilApiMetadata> entry : yggdrasilApiMetadataMap.entrySet()) {
+            HashSet<String> allPossibleSuffixes = new HashSet<>();
+            for (char separator : AuthSourceSuffixInfo.SUFFIX_SEPARATORS) {
+                allPossibleSuffixes.add(separator + entry.getKey().suffix());
+                for (String suffix : entry.getKey().formerSuffixes()) {
+                    allPossibleSuffixes.add(separator + suffix);
+                }
+            }
+            AuthSourceSuffixInfo info = new AuthSourceSuffixInfo(initialConfig.bootstrapConfig().commonSuffixConfig().suffixSeparatorChar() + entry.getKey().suffix(), allPossibleSuffixes);
+            suffixInfoMapBuilder.put(entry.getValue(), info);
+        }
+        yggdrasilSuffixInfoMap = suffixInfoMapBuilder.build();
+
+        ImmutableBiMap.Builder<YggdrasilApiMetadata, String> configNameMapBuilder = ImmutableBiMap.builder();
+        for (Map.Entry<YggdrasilAuthSourceUnit, YggdrasilApiMetadata> entry : yggdrasilApiMetadataMap.entrySet()) {
+            configNameMapBuilder.put(entry.getValue(), entry.getKey().name().toLowerCase(Locale.ROOT));
+        }
+        yggdrasilConfigNameMap = configNameMapBuilder.build();
+
+        HashSet<String> allPossibleSuffixes = new HashSet<>();
+        for (char separator : AuthSourceSuffixInfo.SUFFIX_SEPARATORS) {
+            allPossibleSuffixes.add(separator + initialConfig.bootstrapConfig().mojangAuthSourceConfig().suffix());
+            for (String suffix : initialConfig.bootstrapConfig().mojangAuthSourceConfig().formerSuffixes()) {
+                allPossibleSuffixes.add(separator + suffix);
+            }
+        }
+        mojangSuffixInfo = new AuthSourceSuffixInfo(initialConfig.bootstrapConfig().commonSuffixConfig().suffixSeparatorChar() + initialConfig.bootstrapConfig().mojangAuthSourceConfig().suffix(), allPossibleSuffixes);
+
         combineConfig();
     }
 
@@ -84,7 +137,53 @@ public class ServerConfigManager {
         if (!initialized) {
             readConfigFromFile().ifSuccess(
                     config -> {
-                        instance = new ServerConfigManager(config);
+                        String suffixExemptConfigName = config.bootstrapConfig().commonSuffixConfig().suffixExemptedSource();
+                        boolean suffixExemptNameValid = suffixExemptConfigName.isEmpty() || "mojang".equalsIgnoreCase(suffixExemptConfigName) || "offline".equalsIgnoreCase(suffixExemptConfigName);
+                        suffixExemptNameValid = suffixExemptNameValid || config.bootstrapConfig().yggdrasilAuthSourceUnits().stream().anyMatch(unit -> unit.name().equalsIgnoreCase(suffixExemptConfigName));
+                        if (!suffixExemptNameValid) {
+                            MythicWorldSecurity.LOGGER.error("Invalid suffix exempted source name: {}", suffixExemptConfigName);
+                            return;
+                        }
+                        ImmutableBiMap.Builder<YggdrasilAuthSourceUnit, YggdrasilApiMetadata> metadataMapBuilder = ImmutableBiMap.builder();
+                        HashSet<String> allApiNames = new HashSet<>();
+                        allApiNames.add("mojang");
+                        allApiNames.add("offline");
+                        HashSet<String> allSubfixes = new HashSet<>();
+                        if (config.bootstrapConfig().yggdrasilSourcesEnabled()) {
+                            Set<YggdrasilAuthSourceUnit> yggdrasilAuthSourceUnits = config.bootstrapConfig().yggdrasilAuthSourceUnits();
+                            for (YggdrasilAuthSourceUnit unit : yggdrasilAuthSourceUnits) {
+                                if (unit.enabled()) {
+                                    if (allApiNames.contains(unit.name().toLowerCase(Locale.ROOT))) {
+                                        MythicWorldSecurity.LOGGER.error("Duplicate API name found: {}", unit.name());
+                                        return;
+                                    }
+                                    allApiNames.add(unit.name().toLowerCase(Locale.ROOT));
+                                    HashSet<String> subfixes = new HashSet<>();
+                                    subfixes.add(unit.suffix());
+                                    subfixes.addAll(unit.formerSuffixes());
+                                    for (String subfix : subfixes) {
+                                        if (allSubfixes.contains(subfix)) {
+                                            MythicWorldSecurity.LOGGER.error("Duplicate subfix found: {}", subfix);
+                                            return;
+                                        }
+                                    }
+                                    allSubfixes.addAll(subfixes);
+                                    try {
+                                        YggdrasilApiMetadata metadata = MSecNetwork.fetchIOWithRetries(() -> YggdrasilApiMetadata.fetchApiMetadata(unit.apiURL(), null), "Yggdrasil API Metadata", 3);
+                                        metadataMapBuilder.put(unit, metadata);
+                                    } catch (IOException e) {
+                                        MythicWorldSecurity.LOGGER.error("Initial config was successfully parsed, but error occurred when fetching metadata for your Yggdrasil APIs. Try correcting your config or restarting the server.");
+                                        return;
+                                    }
+                                }
+                            }
+                            for (String sequenceName : config.bootstrapConfig().unknownUUIDMatchSequence()) {
+                                if (!allApiNames.contains(sequenceName.toLowerCase(Locale.ROOT))) {
+                                    MythicWorldSecurity.LOGGER.error("Invalid config name {} in UUID trial sequence found!", sequenceName);
+                                }
+                            }
+                        }
+                        instance = new ServerConfigManager(config, metadataMapBuilder.build());
                         instance.initialConfigSucceeded = true;
                         MythicWorldSecurity.LOGGER.info("Successfully parsed initial MSec config.");
                     }
@@ -160,5 +259,25 @@ public class ServerConfigManager {
                         configFromFile.configVersion()
                 )
                 : ServerConfig.DEFAULT_INSTANCE;
+    }
+
+    public Set<String> getAllSkinDomains() {
+        return allSkinDomains;
+    }
+
+    public Map<YggdrasilApiMetadata, AuthSourceSuffixInfo> getYggdrasilSuffixInfoMap() {
+        return yggdrasilSuffixInfoMap;
+    }
+
+    public BiMap<YggdrasilApiMetadata, String> getYggdrasilConfigNameMap() {
+        return yggdrasilConfigNameMap;
+    }
+
+    public AuthSourceSuffixInfo getMojangSuffixInfo() {
+        return mojangSuffixInfo;
+    }
+
+    public String getSuffixExemptedSourceName() {
+        return suffixExemptedSourceName;
     }
 }

@@ -6,6 +6,7 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.JsonOps;
 import top.aenp.msec.MythicWorldSecurity;
+import top.aenp.msec.network.MSecNetwork;
 
 import javax.naming.NamingEnumeration;
 import javax.naming.NamingException;
@@ -13,17 +14,13 @@ import javax.naming.directory.Attribute;
 import javax.naming.directory.Attributes;
 import javax.naming.directory.DirContext;
 import javax.naming.directory.InitialDirContext;
-import javax.net.ssl.SSLContext;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.URI;
 import java.net.UnknownHostException;
-import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
-import java.security.NoSuchAlgorithmException;
-import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
@@ -47,7 +44,6 @@ public class TrustUtils {
     public static final Codec<String> VALIDATED_ADDR_STRING_CODEC;
     public static final String HTTPS_META_PATH = "/.well-known/msec/msec_server_metadata.json";
     public static final String DNS_HTTPS_DOMAIN_PREFIX = "_msec.";
-    public static final HttpClient HTTP_CLIENT;
     public static final Codec<Set<String>> DNS_HTTPS_ADDRS_CODEC;
     public static final Codec<Set<String>> DIRECT_HTTPS_ADDRS_CODEC;
 
@@ -86,15 +82,6 @@ public class TrustUtils {
                 list -> decodeAddressStringAsSet(list, false),
                 set -> set.stream().toList()
         );
-        try {
-            HTTP_CLIENT = HttpClient.newBuilder()
-                    .connectTimeout(Duration.ofSeconds(20L))
-                    .followRedirects(HttpClient.Redirect.NORMAL)
-                    .sslContext(SSLContext.getDefault())
-                    .build();
-        } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException(e);
-        }
     }
 
     public static boolean isDnsHttpsApplicable(String hostname) {
@@ -153,13 +140,13 @@ public class TrustUtils {
         }
     }
 
-    public static Map<String, HttpsMetadataEntry> fetchMetadataFromUri(URI uri) throws IOException {
+    public static Map<String, HttpsMetadataEntry> fetchServerMetadataFromUri(URI uri) throws IOException {
         try {
             HttpRequest httpRequest = HttpRequest.newBuilder()
                     .uri(uri)
                     .GET()
                     .build();
-            HttpResponse<String> httpResponse = HTTP_CLIENT.send(httpRequest, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            HttpResponse<String> httpResponse = MSecNetwork.getHttpClient(null).send(httpRequest, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
             int responseCode = httpResponse.statusCode();
             if (!(responseCode >= 200 && responseCode < 400)) {
                 throw new IOException(String.format("Failed to request metadata from %s : %d", uri, responseCode));

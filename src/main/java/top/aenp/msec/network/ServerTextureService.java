@@ -5,9 +5,9 @@ import net.minecraft.server.network.ServerLoginNetworkHandler;
 import net.minecraft.server.network.ServerPlayNetworkHandler;
 import top.aenp.msec.MythicWorldSecurity;
 import top.aenp.msec.Utils;
-import top.aenp.msec.network.payloads.texture.LoginTextureDataC2SPayload;
-import top.aenp.msec.network.payloads.texture.PlayTextureRequestC2SPayload;
-import top.aenp.msec.network.payloads.texture.PlayTextureResponseS2CPayload;
+import top.aenp.msec.network.payloads.texture.c2s.LoginTextureDataC2SPayload;
+import top.aenp.msec.network.payloads.texture.c2s.PlayTextureRequestC2SPayload;
+import top.aenp.msec.network.payloads.texture.s2c.PlayTextureResponseS2CPayload;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;

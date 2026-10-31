@@ -15,7 +15,7 @@ import top.aenp.msec.MythicWorldSecurity;
 import top.aenp.msec.Utils;
 import top.aenp.msec.network.MSecNetwork;
 import top.aenp.msec.network.client.ClientTextureService;
-import top.aenp.msec.network.payloads.texture.PlayTextureResponseS2CPayload;
+import top.aenp.msec.network.payloads.texture.s2c.PlayTextureResponseS2CPayload;
 
 import java.io.*;
 import java.util.concurrent.CompletableFuture;

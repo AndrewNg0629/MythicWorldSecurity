@@ -1,4 +1,4 @@
-package top.aenp.msec.network.payloads.texture;
+package top.aenp.msec.network.payloads.texture.c2s;
 
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.network.codec.PacketCodec;

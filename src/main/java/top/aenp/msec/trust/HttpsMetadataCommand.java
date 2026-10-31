@@ -151,7 +151,7 @@ public class HttpsMetadataCommand {
                             Set<URI> metadataUriSet = TrustUtils.fetchDnsHttpsUrisFromDomain(domainToQuery);
                             boolean found = false;
                             for (URI metadataUri : metadataUriSet) {
-                                Map<String, HttpsMetadataEntry> metadataMap = TrustUtils.fetchMetadataFromUri(metadataUri);
+                                Map<String, HttpsMetadataEntry> metadataMap = TrustUtils.fetchServerMetadataFromUri(metadataUri);
                                 HttpsMetadataEntry entry = metadataMap.get(address);
                                 if (entry != null) {
                                     found = true;
@@ -188,7 +188,7 @@ public class HttpsMetadataCommand {
                             context.getSource().sendFeedback(() -> Text.of(String.format("Testing Direct HTTPS metadata for %s", address)), false);
                             String domain = address.split(":")[0];
                             URI metadataUri = URI.create("https://" + domain + TrustUtils.HTTPS_META_PATH);
-                            Map<String, HttpsMetadataEntry> metadataMap = TrustUtils.fetchMetadataFromUri(metadataUri);
+                            Map<String, HttpsMetadataEntry> metadataMap = TrustUtils.fetchServerMetadataFromUri(metadataUri);
                             HttpsMetadataEntry entry = metadataMap.get(address);
                             if (entry != null) {
                                 if (entry.fingerprint().equalsIgnoreCase(serverFingerprint)) {

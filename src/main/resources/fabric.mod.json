@@ -4,7 +4,9 @@
   "version": "${version}",
   "name": "MythicWorldSecurity",
   "description": "",
-  "authors": [],
+  "authors": [
+    "AndrewNg0629"
+  ],
   "contact": {},
   "license": "MIT",
   "icon": "assets/mythicworldsecurity/icon.png",
@@ -28,7 +30,7 @@
     "fabricloader": ">=${loader_version}",
     "fabric-api": "*",
     "minecraft": "${minecraft_version}",
-    "mythicworldlib": "*"
+    "mythicworldlib": "${mwl_version}"
   },
   "custom": {
     "modmenu": {
