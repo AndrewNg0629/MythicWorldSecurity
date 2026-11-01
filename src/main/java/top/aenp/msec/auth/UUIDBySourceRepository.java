@@ -20,7 +20,6 @@ import java.nio.file.StandardCopyOption;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 public class UUIDBySourceRepository {
@@ -30,7 +29,7 @@ public class UUIDBySourceRepository {
     private static UUIDBySourceRepository instance = null;
     private final Path uuidRepoFilePath;
     private final Path uuidRepoTempFilePath;
-    private final ConcurrentHashMap<String, Map<UUID, UUID>> inMemoryCache = new ConcurrentHashMap<>();
+    private final HashMap<String, Map<UUID, UUID>> inMemoryCache = new HashMap<>();
 
     private UUIDBySourceRepository() {
         Path workingDirPath = MythicWorldSecurity.MAIN_DIR.resolve("server").resolve("player_data");
