@@ -15,17 +15,6 @@ import top.aenp.mwl.misc.EnvironmentDetector;
 
 @Mixin(value = YggdrasilAuthenticationService.class, priority = 990)
 public class YggdrasilAuthenticationServiceMixin {
-//    @Inject(method = "determineEnvironment", at = @At(value = "RETURN"), cancellable = true)
-//    private static void determineEnvironment(CallbackInfoReturnable<Environment> info) {
-//        if (!EnvironmentDetector.isPhyClient) {
-//            info.setReturnValue(new Environment(
-//                    "https://littleskin.cn/api/yggdrasil/sessionserver",
-//                    "https://littleskin.cn/api/yggdrasil/minecraftservices",
-//                    "TEST"
-//            ));
-//        }
-//    }
-
     @Inject(method = "createMinecraftSessionService", at = @At(value = "RETURN"), cancellable = true)
     private void createMinecraftSessionService(CallbackInfoReturnable<MinecraftSessionService> info) {
         if (!EnvironmentDetector.isPhyClient) {
@@ -37,7 +26,9 @@ public class YggdrasilAuthenticationServiceMixin {
 
     @Inject(method = "createProfileRepository", at = @At(value = "HEAD"))
     private void createProfileRepository(CallbackInfoReturnable<GameProfileRepository> info) {
-
+        if (!EnvironmentDetector.isPhyClient) {
+            //TODO Implement server profile repo.
+        }
     }
 
     @Inject(method = "createUserApiService", at = @At(value = "HEAD"), cancellable = true)

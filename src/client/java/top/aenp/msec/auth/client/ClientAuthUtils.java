@@ -2,6 +2,7 @@ package top.aenp.msec.auth.client;
 
 import net.minecraft.client.MinecraftClient;
 import top.aenp.msec.MythicWorldSecurity;
+import top.aenp.msec.Utils;
 import top.aenp.msec.auth.YggdrasilApiMetadata;
 import top.aenp.msec.network.MSecNetwork;
 
@@ -69,7 +70,7 @@ public class ClientAuthUtils {
     public static boolean validateMojangSession() throws IOException {
         try {
             MinecraftClient minecraftClient = MinecraftClient.getInstance();
-            URI profileUri = new URI("https://api.minecraftservices.com/minecraft/profile");
+            URI profileUri = new URI(Utils.MOJANG_SESSION_SERVER + "/minecraft/profile");
             HttpRequest httpRequest = HttpRequest.newBuilder()
                     .uri(profileUri)
                     .header("Authorization", "Bearer " + minecraftClient.getSession().getAccessToken())

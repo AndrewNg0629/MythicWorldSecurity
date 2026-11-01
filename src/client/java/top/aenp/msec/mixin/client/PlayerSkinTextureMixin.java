@@ -12,7 +12,6 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import top.aenp.msec.MythicWorldSecurity;
-import top.aenp.msec.Utils;
 import top.aenp.msec.network.MSecNetwork;
 import top.aenp.msec.network.client.ClientTextureService;
 import top.aenp.msec.network.payloads.texture.s2c.PlayTextureResponseS2CPayload;
@@ -51,7 +50,12 @@ public abstract class PlayerSkinTextureMixin {
                     try {
                         InputStream textureInputStream;
                         if (cacheFile != null) {
-                            Utils.ensureParents(cacheFile);
+                            File directory = cacheFile.getParentFile();
+                            if (directory != null && !directory.exists()) {
+                                if (!directory.mkdirs()) {
+                                    throw new IOException(String.format("Failed to create parent directories for %s.", cacheFile));
+                                }
+                            }
                             try (FileOutputStream fileOutputStream = new FileOutputStream(cacheFile)) {
                                 fileOutputStream.write(textureData);
                                 textureInputStream = new FileInputStream(cacheFile);

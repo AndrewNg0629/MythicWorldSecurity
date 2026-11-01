@@ -7,6 +7,7 @@ import com.mojang.authlib.yggdrasil.response.MinecraftProfilePropertiesResponse;
 import com.mojang.authlib.yggdrasil.response.ProfileAction;
 import com.mojang.util.UndashedUuid;
 import top.aenp.msec.MythicWorldSecurity;
+import top.aenp.msec.Utils;
 import top.aenp.msec.config.ServerConfigManager;
 import top.aenp.msec.network.MSecNetwork;
 
@@ -20,8 +21,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
 public class ServerMSecMinecraftSessionService extends AbstractMSecMinecraftSessionService {
@@ -37,28 +36,26 @@ public class ServerMSecMinecraftSessionService extends AbstractMSecMinecraftSess
 
     @Override
     public ProfileResult fetchProfile(UUID profileId, boolean requireSecure) {
-        String apiConfigName = UUIDBySourceRepository.getInstance().searchUUIDInValue(profileId);
+        UUIDBySourceRepository.UUIDSearchResult searchResult = UUIDBySourceRepository.getInstance().searchAndReverseMapUUID(profileId);
         UUID requestUUID;
-        if (apiConfigName == null) {
+        if (searchResult == null) {
             for (String trialConfigName : ServerConfigManager.getConfig().bootstrapConfig().unknownUUIDMatchSequence()) {
                 ProfileResult profileResult = fetchProfileAndSuffix(trialConfigName, profileId);
                 if (profileResult != null) {
-                    CompletableFuture<UUID> uuidFuture = new CompletableFuture<>();
-                    UUIDBySourceRepository.getInstance().scheduleNewUUIDOperation(trialConfigName, profileResult.profile().getId(), uuidFuture::complete, uuidFuture::completeExceptionally);
-                    try {
-                        UUID uuid = uuidFuture.get();
+                    UUID uuid = UUIDBySourceRepository.getInstance().mapUUID(trialConfigName, profileResult.profile().getId());
+                    if (uuid != null) {
                         GameProfile rewrittenProfile = new GameProfile(uuid, profileResult.profile().getName());
                         rewrittenProfile.getProperties().putAll(profileResult.profile().getProperties());
                         return new ProfileResult(rewrittenProfile, profileResult.actions());
-                    } catch (ExecutionException | InterruptedException e) {
+                    } else {
                         return null;
                     }
                 }
             }
             return null;
         } else {
-            requestUUID = UUIDBySourceRepository.getInstance().reverseMapUUID(apiConfigName, profileId);
-            ProfileResult profileResult = fetchProfileAndSuffix(apiConfigName, requestUUID);
+            requestUUID = searchResult.reverseMappedUUID();
+            ProfileResult profileResult = fetchProfileAndSuffix(searchResult.sourceConfigName(), requestUUID);
             if (profileResult != null) {
                 GameProfile rewrittenProfile = new GameProfile(profileId, profileResult.profile().getName());
                 rewrittenProfile.getProperties().putAll(profileResult.profile().getProperties());
@@ -79,8 +76,8 @@ public class ServerMSecMinecraftSessionService extends AbstractMSecMinecraftSess
             String sessionHost;
             AuthSourceSuffixInfo suffixInfo = null;
             if (apiConfigName.equalsIgnoreCase("mojang")) {
-                sessionHost = "https://sessionserver.mojang.com/session/minecraft";
-                if (!suffixExemptedName.equals("mojang") && !suffixExemptedName.isEmpty()) {
+                sessionHost = Utils.MOJANG_SESSION_SERVER + "/session/minecraft";
+                if (!suffixExemptedName.equals("mojang")) {
                     suffixInfo = ServerConfigManager.getInstance().getMojangSuffixInfo();
                 }
             } else {
@@ -93,7 +90,7 @@ public class ServerMSecMinecraftSessionService extends AbstractMSecMinecraftSess
                     apiRoot = apiRoot + "/";
                 }
                 sessionHost = apiRoot + "sessionserver/session/minecraft";
-                if (!suffixExemptedName.equalsIgnoreCase(apiConfigName) && !suffixExemptedName.isEmpty()) {
+                if (!suffixExemptedName.equalsIgnoreCase(apiConfigName)) {
                     suffixInfo = ServerConfigManager.getInstance().getYggdrasilSuffixInfoMap().get(metadata);
                 }
             }

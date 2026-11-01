@@ -3,18 +3,14 @@ package top.aenp.msec.network;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.mojang.authlib.GameProfile;
-import com.mojang.authlib.minecraft.MinecraftProfileTexture;
-import com.mojang.authlib.properties.Property;
 import com.mojang.authlib.properties.PropertyMap;
 import com.mojang.authlib.yggdrasil.response.HasJoinedMinecraftServerResponse;
-import com.mojang.authlib.yggdrasil.response.MinecraftTexturesPayload;
 import com.mojang.util.UUIDTypeAdapter;
 import net.minecraft.network.ClientConnection;
 import net.minecraft.network.packet.c2s.login.LoginHelloC2SPacket;
 import net.minecraft.network.packet.s2c.login.LoginQueryRequestS2CPacket;
 import net.minecraft.server.network.ServerLoginNetworkHandler;
 import net.minecraft.text.Text;
-import net.minecraft.util.Uuids;
 import org.apache.commons.lang3.Validate;
 import top.aenp.msec.MythicWorldSecurity;
 import top.aenp.msec.Utils;
@@ -52,12 +48,8 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.security.*;
-import java.util.Base64;
-import java.util.HashMap;
 import java.util.Locale;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 
 public class MSecServerLoginHandshakeHandlerImpl implements MSecServerLoginHandshakeHandler {
     public static final Gson PROFILE_GSON = new GsonBuilder()
@@ -204,8 +196,8 @@ public class MSecServerLoginHandshakeHandlerImpl implements MSecServerLoginHands
             String suffixExemptedName = ServerConfigManager.getInstance().getSuffixExemptedSourceName();
             if (payload.authSourceType() == LoginAuthSourceResponseC2SPayload.AuthSourceType.MOJANG && ServerConfigManager.getConfig().bootstrapConfig().mojangAuthSourceConfig().enabled()) {
                 apiConfigName = "mojang";
-                checkJoinHost = "https://sessionserver.mojang.com/session/minecraft/hasJoined";
-                if (!suffixExemptedName.equalsIgnoreCase("mojang") && !suffixExemptedName.isEmpty()) {
+                checkJoinHost = Utils.MOJANG_SESSION_SERVER + "/session/minecraft/hasJoined";
+                if (!suffixExemptedName.equalsIgnoreCase("mojang")) {
                     sourceSuffixInfo = ServerConfigManager.getInstance().getMojangSuffixInfo();
                 }
             } else {
@@ -223,7 +215,7 @@ public class MSecServerLoginHandshakeHandlerImpl implements MSecServerLoginHands
                         apiRootUrl = apiRootUrl + "/";
                     }
                     checkJoinHost = apiRootUrl + "sessionserver/session/minecraft/hasJoined";
-                    if (!suffixExemptedName.equalsIgnoreCase(apiConfigName) && !suffixExemptedName.isEmpty()) {
+                    if (!suffixExemptedName.equalsIgnoreCase(apiConfigName)) {
                         sourceSuffixInfo = ServerConfigManager.getInstance().getYggdrasilSuffixInfoMap().get(matchingMetadata);
                     }
                 } else {
@@ -254,16 +246,14 @@ public class MSecServerLoginHandshakeHandlerImpl implements MSecServerLoginHands
                 HttpResponse<String> httpResponse = MSecNetwork.getHttpClient(null).send(httpRequest, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
                 int responseCode = httpResponse.statusCode();
                 if (!(responseCode >= 200 && responseCode < 400)) {
-                    onAuthenticationFail(null);
+                    onAuthenticationFail();
                     return;
                 }
                 HasJoinedMinecraftServerResponse apiResponse = PROFILE_GSON.fromJson(httpResponse.body(), HasJoinedMinecraftServerResponse.class);
                 if (apiResponse != null && apiResponse.id() != null && apiResponse.properties() != null) {
                     UUID fetchedUUID = apiResponse.id();
-                    CompletableFuture<UUID> computeUUIDFuture = new CompletableFuture<>();
-                    UUIDBySourceRepository.getInstance().scheduleNewUUIDOperation(apiConfigName, fetchedUUID, computeUUIDFuture::complete, computeUUIDFuture::completeExceptionally);
-                    try {
-                        UUID mappedUUID = computeUUIDFuture.get();
+                    UUID mappedUUID = UUIDBySourceRepository.getInstance().mapUUID(apiConfigName, fetchedUUID);
+                    if (mappedUUID != null) {
                         String suffixedName = profileName;
                         if (sourceSuffixInfo != null) {
                             suffixedName = suffixedName + sourceSuffixInfo.primarySuffix();
@@ -275,11 +265,11 @@ public class MSecServerLoginHandshakeHandlerImpl implements MSecServerLoginHands
                         state = MSecHandshakeState.SUCCESS;
                         sendPayload(new LoginAllowedSkinDomainsS2CPayload(ServerConfigManager.getInstance().getAllSkinDomains()));
                         serverLoginNetworkHandler.mythicworldsecurity$startVerify(rewrittenProfile);
-                    } catch (CompletionException e) {
-                        onAuthenticationFail(e);
+                    } else {
+                        onAuthenticationFail();
                     }
                 } else {
-                    onAuthenticationFail(null);
+                    onAuthenticationFail();
                 }
             } catch (Exception e) {
                 serverLoginNetworkHandler.disconnect(Text.translatable("multiplayer.disconnect.authservers_down"));
@@ -295,7 +285,7 @@ public class MSecServerLoginHandshakeHandlerImpl implements MSecServerLoginHands
         //TODO
     }
 
-    private void onAuthenticationFail(Exception e) {
+    private void onAuthenticationFail() {
         serverLoginNetworkHandler.disconnect(Text.translatable("multiplayer.disconnect.unverified_username"));
         MythicWorldSecurity.LOGGER.error("Failed to authenticate player '{}'", profileName);
     }
@@ -318,27 +308,5 @@ public class MSecServerLoginHandshakeHandlerImpl implements MSecServerLoginHands
             MythicWorldSecurity.LOGGER.error("Failed to sign login transcript: {}", e.toString());
             throw new RuntimeException("Failed to sign login transcript: " + e);
         }
-    }
-
-    //Test method
-    private GameProfile constructTestProfile() {
-        GameProfile gameProfile = new GameProfile(Uuids.getOfflinePlayerUuid(profileName), profileName + "_test");
-        HashMap<MinecraftProfileTexture.Type, MinecraftProfileTexture> textures = new HashMap<>();
-        MinecraftProfileTexture skinTexture = new MinecraftProfileTexture(MSecNetwork.TEXTURE_DUMMY_URL_PREFIX + "49d53d3894c4bf776518b384ced33f56e1d78a19", null);
-        //MinecraftProfileTexture skinTexture = new MinecraftProfileTexture(MSecNetwork.TEXTURE_DUMMY_URL_PREFIX + "49d53d3894c4bf776518b384ced33f56e1d78a19", Map.of("model", "slim"));
-        MinecraftProfileTexture capeTexture = new MinecraftProfileTexture(MSecNetwork.TEXTURE_DUMMY_URL_PREFIX + "ed1cb191817b61be89acebd65e94a98d651119b8", null);
-        textures.put(MinecraftProfileTexture.Type.SKIN, skinTexture);
-        textures.put(MinecraftProfileTexture.Type.CAPE, capeTexture);
-        MinecraftTexturesPayload payload = new MinecraftTexturesPayload(
-                System.currentTimeMillis(),
-                gameProfile.getId(),
-                gameProfile.getName(),
-                false,
-                textures
-        );
-        String rewrittenPayload = Utils.PROFILE_GSON.toJson(payload);
-        String encodedRewrittenPayload = Base64.getEncoder().encodeToString(rewrittenPayload.getBytes(StandardCharsets.UTF_8));
-        gameProfile.getProperties().put("textures", new Property("textures", encodedRewrittenPayload));
-        return gameProfile;
     }
 }
