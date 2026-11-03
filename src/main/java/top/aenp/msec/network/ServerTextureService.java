@@ -16,6 +16,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -25,7 +26,7 @@ public class ServerTextureService {
     private final LinkedBlockingDeque<SubmissionEntry> submissionQueue = new LinkedBlockingDeque<>();
     private final HashMap<String, CacheEntry> inMemoryCache = new HashMap<>();
     private final Path cacheDirPath = MythicWorldSecurity.MAIN_DIR.resolve("server").resolve("texture_caches").normalize();
-    private final Object lock = new Object();
+    private final ReentrantLock lock = new ReentrantLock();
 
     @SuppressWarnings("BusyWait")
     private ServerTextureService() {
@@ -60,8 +61,11 @@ public class ServerTextureService {
         Runnable cacheCleaner = () -> {
             while (!Thread.currentThread().isInterrupted()) {
                 try {
-                    synchronized (lock) {
+                    try {
+                        lock.lock();
                         inMemoryCache.entrySet().removeIf(stringCacheEntryEntry -> stringCacheEntryEntry.getValue().lastTouched + 180000 <= System.currentTimeMillis());
+                    } finally {
+                        lock.unlock();
                     }
                     Thread.sleep(60000);
                 } catch (InterruptedException e) {
@@ -183,7 +187,8 @@ public class ServerTextureService {
     }
 
     private PlayTextureResponseS2CPayload computeResponsePayload(RequestEntry entry) {
-        synchronized (lock) {
+        try {
+            lock.lock();
             String hash = entry.payload.textureHash();
             CacheEntry cacheEntry = inMemoryCache.get(hash);
             if (cacheEntry != null) {
@@ -204,6 +209,8 @@ public class ServerTextureService {
                     return new PlayTextureResponseS2CPayload(hash, null);
                 }
             }
+        } finally {
+            lock.unlock();
         }
     }
 

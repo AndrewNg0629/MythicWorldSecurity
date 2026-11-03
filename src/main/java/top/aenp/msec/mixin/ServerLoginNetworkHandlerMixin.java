@@ -27,13 +27,11 @@ import top.aenp.mwl.network.v2.MythicNetwork;
 @Mixin(ServerLoginNetworkHandler.class)
 public abstract class ServerLoginNetworkHandlerMixin implements MSecServerLoginNetworkHandler {
     @Shadow
-    String profileName;
+    @Final
+    ClientConnection connection;
     @Shadow
     @Final
-    private ClientConnection connection;
-    @Shadow
-    @Final
-    private MinecraftServer server;
+    MinecraftServer server;
     @Shadow
     private int loginTicks;
     @Unique

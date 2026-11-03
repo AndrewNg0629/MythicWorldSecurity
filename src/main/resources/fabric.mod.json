@@ -3,13 +3,13 @@
   "id": "mythicworldsecurity",
   "version": "${version}",
   "name": "MythicWorldSecurity",
-  "description": "",
+  "description": "Network encryption and auth",
   "authors": [
     "AndrewNg0629"
   ],
   "contact": {},
   "license": "MIT",
-  "icon": "assets/mythicworldsecurity/icon.png",
+  "icon": "assets/mythicworldsecurity/structure_block_with_lock.png",
   "environment": "*",
   "entrypoints": {
     "client": [

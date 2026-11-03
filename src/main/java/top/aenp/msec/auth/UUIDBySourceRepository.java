@@ -60,7 +60,7 @@ public class UUIDBySourceRepository {
         if (instance != null) {
             return instance;
         } else {
-            throw new IllegalStateException();
+            throw new IllegalStateException("UUID by source repository hasn't been initialized!");
         }
     }
 

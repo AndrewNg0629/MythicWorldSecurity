@@ -103,7 +103,7 @@ public class MSecClientLoginHandshakeHandlerImpl implements MSecClientLoginHands
                         MythicWorldSecurity.LOGGER.info("Trying to verify the server with DNS HTTPS metadata.");
                         try {
                             String domainToQuery = TrustUtils.DNS_HTTPS_DOMAIN_PREFIX + serverDomain;
-                            Set<URI> metadataUriSet = MSecNetwork.fetchIOWithRetries(() -> TrustUtils.fetchDnsHttpsUrisFromDomain(domainToQuery), "DNS HTTPS URIs", 3);
+                            Set<URI> metadataUriSet = MSecNetwork.fetchIOWithRetries(() -> TrustUtils.fetchDnsHttpsUrisFromDomain(domainToQuery), "DNS HTTPS URIs", 3, 1000L);
                             for (URI metadataUri : metadataUriSet) {
                                 if (fetchHttpsMetadataAndCompare(metadataUri, serverAddressString, serverDomain, fingerprintMap, isIdentityChange, true)) {
                                     return;
@@ -259,7 +259,7 @@ public class MSecClientLoginHandshakeHandlerImpl implements MSecClientLoginHands
 
     private boolean fetchHttpsMetadataAndCompare(URI metadataUri, String serverAddressString, String serverDomain, Map<String, TrustedFingerprintEntry> fingerprintMap, boolean isIdentityChange, boolean dns) {
         try {
-            Map<String, HttpsMetadataEntry> metadataMap = MSecNetwork.fetchIOWithRetries(() -> TrustUtils.fetchServerMetadataFromUri(metadataUri), "server metadata", 5);
+            Map<String, HttpsMetadataEntry> metadataMap = MSecNetwork.fetchIOWithRetries(() -> TrustUtils.fetchServerMetadataFromUri(metadataUri), "server metadata", 5, 1000L);
             HttpsMetadataEntry entry = metadataMap.get(serverAddressString);
             if (entry != null) {
                 if (serverFingerprint.equalsIgnoreCase(entry.fingerprint())) {

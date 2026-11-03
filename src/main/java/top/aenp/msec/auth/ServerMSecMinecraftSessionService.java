@@ -18,12 +18,19 @@ import java.net.URISyntaxException;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
-import java.util.Locale;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
 
 public class ServerMSecMinecraftSessionService extends AbstractMSecMinecraftSessionService {
+    public static final ServerMSecMinecraftSessionService INSTANCE = new ServerMSecMinecraftSessionService();
+    private static final int CACHE_EXPIRE_TIME = 3600;
+    private final HashMap<UUID, ProfileResultCacheEntry> profileByUUIDCache = new HashMap<>();
+    private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
+
+    private ServerMSecMinecraftSessionService() {
+    }
+
     @Override
     public void joinServer(UUID profileId, String authenticationToken, String serverId) {
         throw new UnsupportedOperationException();
@@ -36,6 +43,42 @@ public class ServerMSecMinecraftSessionService extends AbstractMSecMinecraftSess
 
     @Override
     public ProfileResult fetchProfile(UUID profileId, boolean requireSecure) {
+        try {
+            lock.readLock().lock();
+            ProfileResultCacheEntry cacheEntry = profileByUUIDCache.get(profileId);
+            if (cacheEntry != null) {
+                if (cacheEntry.cachedOn + 1000L * CACHE_EXPIRE_TIME >= System.currentTimeMillis()) {
+                    return cacheEntry.profileResult;
+                }
+            }
+        } finally {
+            lock.readLock().unlock();
+        }
+        try {
+            lock.writeLock().lock();
+            ProfileResultCacheEntry cacheEntry = profileByUUIDCache.get(profileId);
+            if (cacheEntry != null) {
+                if (cacheEntry.cachedOn + 1000L * CACHE_EXPIRE_TIME >= System.currentTimeMillis()) {
+                    return cacheEntry.profileResult;
+                }
+            }
+            ProfileResult profileResult = fetchProfileUncached(profileId);
+            if (profileResult != null) {
+                ProfileResultCacheEntry newCacheEntry = new ProfileResultCacheEntry(profileResult, System.currentTimeMillis());
+                if (profileByUUIDCache.size() >= 1000) {
+                    profileByUUIDCache.entrySet().removeIf(mapEntry -> mapEntry.getValue().cachedOn + 1000L * CACHE_EXPIRE_TIME < System.currentTimeMillis());
+                }
+                profileByUUIDCache.put(profileId, newCacheEntry);
+                return profileResult;
+            } else {
+                return null;
+            }
+        } finally {
+            lock.writeLock().unlock();
+        }
+    }
+
+    public ProfileResult fetchProfileUncached(UUID profileId) {
         UUIDBySourceRepository.UUIDSearchResult searchResult = UUIDBySourceRepository.getInstance().searchAndReverseMapUUID(profileId);
         UUID requestUUID;
         if (searchResult == null) {
@@ -144,5 +187,8 @@ public class ServerMSecMinecraftSessionService extends AbstractMSecMinecraftSess
             MythicWorldSecurity.LOGGER.error("Failed to fetch profile of UUID {} from {} due to exception!", uuid, sessionHost, e);
             return null;
         }
+    }
+
+    public record ProfileResultCacheEntry(ProfileResult profileResult, long cachedOn) {
     }
 }

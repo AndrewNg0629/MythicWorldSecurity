@@ -9,7 +9,8 @@
     "ConnectScreenConnectorThreadMixin",
     "PlayerSkinProviderFileCacheMixin",
     "PlayerSkinTextureMixin",
-    "YggdrasilAuthenticationServiceMixin"
+    "ClientYggdrasilAuthenticationServiceMixin",
+    "ClientConnectionMixin"
   ],
   "injectors": {
     "defaultRequire": 1

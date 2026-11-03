@@ -169,7 +169,7 @@ public class ServerConfigManager {
                                     }
                                     allSubfixes.addAll(subfixes);
                                     try {
-                                        YggdrasilApiMetadata metadata = MSecNetwork.fetchIOWithRetries(() -> YggdrasilApiMetadata.fetchApiMetadata(unit.apiURL(), null), "Yggdrasil API Metadata", 3);
+                                        YggdrasilApiMetadata metadata = MSecNetwork.fetchIOWithRetries(() -> YggdrasilApiMetadata.fetchApiMetadata(unit.apiURL(), null), "Yggdrasil API Metadata", 3, 1000L);
                                         metadataMapBuilder.put(unit, metadata);
                                     } catch (IOException e) {
                                         MythicWorldSecurity.LOGGER.error("Initial config was successfully parsed, but error occurred when fetching metadata for your Yggdrasil APIs. Try correcting your config or restarting the server.");

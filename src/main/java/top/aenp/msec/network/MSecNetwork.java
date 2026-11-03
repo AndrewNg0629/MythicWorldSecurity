@@ -7,9 +7,9 @@ import top.aenp.msec.network.payloads.LoginHeartbeatC2SPayload;
 import top.aenp.msec.network.payloads.LoginHeartbeatS2CPayload;
 import top.aenp.msec.network.payloads.auth.c2s.LoginAuthSourceResponseC2SPayload;
 import top.aenp.msec.network.payloads.auth.c2s.LoginContactFinishC2SPayload;
-import top.aenp.msec.network.payloads.auth.s2c.LoginAllowedSkinDomainsS2CPayload;
-import top.aenp.msec.network.payloads.auth.s2c.LoginAuthSourceRequestS2CPayload;
-import top.aenp.msec.network.payloads.auth.s2c.LoginContactEndpointS2CPayload;
+import top.aenp.msec.network.payloads.auth.c2s.PlayProfileBatchRequestC2SPayload;
+import top.aenp.msec.network.payloads.auth.c2s.PlayProfileQueryC2SPayload;
+import top.aenp.msec.network.payloads.auth.s2c.*;
 import top.aenp.msec.network.payloads.crypto.c2s.LoginIdentityC2SPayload;
 import top.aenp.msec.network.payloads.crypto.c2s.LoginModVersionC2SPayload;
 import top.aenp.msec.network.payloads.crypto.c2s.LoginSignatureC2SPayload;
@@ -110,6 +110,10 @@ public class MSecNetwork {
             MythicNetwork.INSTANCE.LOGIN_S2C_CODECS.put(LoginContactEndpointS2CPayload.ID, LoginContactEndpointS2CPayload.CODEC);
             MythicNetwork.INSTANCE.LOGIN_C2S_CODECS.put(LoginContactFinishC2SPayload.ID, LoginContactFinishC2SPayload.CODEC);
             MythicNetwork.INSTANCE.LOGIN_S2C_CODECS.put(LoginAllowedSkinDomainsS2CPayload.ID, LoginAllowedSkinDomainsS2CPayload.CODEC);
+            MythicNetwork.INSTANCE.CUSTOM_PAYLOAD_CODECS.put(PlayProfileQueryC2SPayload.ID.id(), PlayProfileQueryC2SPayload.CODEC);
+            MythicNetwork.INSTANCE.CUSTOM_PAYLOAD_CODECS.put(PlayProfileResponseS2CPayload.ID.id(), PlayProfileResponseS2CPayload.CODEC);
+            MythicNetwork.INSTANCE.CUSTOM_PAYLOAD_CODECS.put(PlayProfileBatchRequestC2SPayload.ID.id(), PlayProfileBatchRequestC2SPayload.CODEC);
+            MythicNetwork.INSTANCE.CUSTOM_PAYLOAD_CODECS.put(PlayProfileBatchResponseS2CPayload.ID.id(), PlayProfileBatchResponseS2CPayload.CODEC);
             initialized = true;
         } else {
             throw new IllegalStateException("MSecNetwork has already been initialized!");
@@ -152,7 +156,7 @@ public class MSecNetwork {
         return false;
     }
 
-    public static <R> R fetchIOWithRetries(IOFetchOperation<R> operation, String name, int maxRetries) throws IOException {
+    public static <R> R fetchIOWithRetries(IOFetchOperation<R> operation, String name, int maxRetries, long baseDelay) throws IOException {
         IOException ioException = null;
         for (int i = 1; i <= maxRetries; i++) {
             try {
@@ -162,7 +166,7 @@ public class MSecNetwork {
                 MythicWorldSecurity.LOGGER.error("Attempt #{} to fetch {} failed!", i, name, e);
                 if (i < maxRetries) {
                     try {
-                        Thread.sleep(1000L * i);
+                        Thread.sleep(baseDelay * i);
                     } catch (InterruptedException e1) {
                         Thread.currentThread().interrupt();
                         throw new RuntimeException("Thread terminated during fetch.", e);

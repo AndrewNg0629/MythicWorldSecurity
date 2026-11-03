@@ -5,6 +5,8 @@ import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.loader.api.FabricLoader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import top.aenp.msec.auth.ClientProfileBatchRequestHandler;
+import top.aenp.msec.auth.ClientProfileQueryHandler;
 import top.aenp.msec.auth.UUIDBySourceRepository;
 import top.aenp.msec.config.ServerConfigManager;
 import top.aenp.msec.network.MSecNetwork;
@@ -16,7 +18,7 @@ import top.aenp.mwl.misc.EnvironmentDetector;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Arrays;
+import java.util.*;
 
 public class MythicWorldSecurity implements ModInitializer {
     public static final Logger LOGGER = LoggerFactory.getLogger("MythicWorldSecurity");
@@ -53,6 +55,8 @@ public class MythicWorldSecurity implements ModInitializer {
             ServerConfigManager.init();
             ServerTextureService.init();
             UUIDBySourceRepository.init();
+            ClientProfileQueryHandler.init();
+            ClientProfileBatchRequestHandler.init();
         }
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
             if (!EnvironmentDetector.isPhyClient) {

@@ -39,6 +39,7 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.zip.Deflater;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
@@ -54,7 +55,7 @@ public class ClientTextureService {
     private final HashMap<String, ClientTextureRequestEntry> textureRequests = new HashMap<>();
     private final LinkedBlockingDeque<PlayTextureResponseS2CPayload> textureResponseQueue = new LinkedBlockingDeque<>();
     private final LinkedBlockingDeque<TextureCommandEntry> textureCommandQueue = new LinkedBlockingDeque<>();
-    private final Object lock = new Object();
+    private final ReentrantLock lock = new ReentrantLock();
     private LocalTextureCache localTextureCache = null;
 
     @SuppressWarnings("BusyWait")
@@ -63,13 +64,16 @@ public class ClientTextureService {
             while (!Thread.currentThread().isInterrupted()) {
                 try {
                     PlayTextureResponseS2CPayload payload = textureResponseQueue.take();
-                    synchronized (lock) {
+                    try {
+                        lock.lock();
                         String hash = payload.hash();
                         ClientTextureRequestEntry entry = textureRequests.get(hash);
                         if (entry != null) {
                             entry.future.complete(payload);
                             textureRequests.remove(hash);
                         }
+                    } finally {
+                        lock.unlock();
                     }
                 } catch (InterruptedException e) {
                     break;
@@ -133,7 +137,8 @@ public class ClientTextureService {
         Runnable cleaner = () -> {
             while (!Thread.currentThread().isInterrupted()) {
                 try {
-                    synchronized (lock) {
+                    try {
+                        lock.lock();
                         Iterator<Map.Entry<String, ClientTextureRequestEntry>> iterator = textureRequests.entrySet().iterator();
                         while (iterator.hasNext()) {
                             Map.Entry<String, ClientTextureRequestEntry> entry = iterator.next();
@@ -142,6 +147,8 @@ public class ClientTextureService {
                                 iterator.remove();
                             }
                         }
+                    } finally {
+                        lock.unlock();
                     }
                     Thread.sleep(60000);
                 } catch (InterruptedException e) {
@@ -230,7 +237,8 @@ public class ClientTextureService {
     }
 
     public CompletableFuture<PlayTextureResponseS2CPayload> requestTexture(ClientPlayNetworkHandler handler, String hash) {
-        synchronized (lock) {
+        try {
+            lock.lock();
             ClientTextureRequestEntry existingEntry = textureRequests.get(hash);
             if (existingEntry != null) {
                 return existingEntry.future;
@@ -240,6 +248,8 @@ public class ClientTextureService {
                 handler.getConnection().send(new CustomPayloadC2SPacket(new PlayTextureRequestC2SPayload(hash)));
                 return future;
             }
+        } finally {
+            lock.unlock();
         }
     }
 

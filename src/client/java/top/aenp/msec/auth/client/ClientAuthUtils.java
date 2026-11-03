@@ -24,9 +24,9 @@ public class ClientAuthUtils {
         try {
             String aliYggdrasilUrl = digAliYggdrasilURL();
             if (aliYggdrasilUrl == null) {
-                isMojangLogin = MSecNetwork.fetchIOWithRetries(ClientAuthUtils::validateMojangSession, "Mojang Login Validity", 5);
+                isMojangLogin = MSecNetwork.fetchIOWithRetries(ClientAuthUtils::validateMojangSession, "Mojang Login Validity", 5, 1000L);
             } else {
-                yggdrasilApiMetadata = MSecNetwork.fetchIOWithRetries(() -> YggdrasilApiMetadata.fetchApiMetadata(aliYggdrasilUrl, MinecraftClient.getInstance().getNetworkProxy()), "Yggdrasil Api Metadata", 5);
+                yggdrasilApiMetadata = MSecNetwork.fetchIOWithRetries(() -> YggdrasilApiMetadata.fetchApiMetadata(aliYggdrasilUrl, MinecraftClient.getInstance().getNetworkProxy()), "Yggdrasil Api Metadata", 5, 1000L);
             }
         } catch (IOException e) {
             MythicWorldSecurity.LOGGER.error("Failed to determine auth source. You will fallback to offline login on MSec servers.", e);
@@ -70,7 +70,7 @@ public class ClientAuthUtils {
     public static boolean validateMojangSession() throws IOException {
         try {
             MinecraftClient minecraftClient = MinecraftClient.getInstance();
-            URI profileUri = new URI(Utils.MOJANG_SESSION_SERVER + "/minecraft/profile");
+            URI profileUri = new URI(Utils.MOJANG_SERVICES_HOST + "/minecraft/profile");
             HttpRequest httpRequest = HttpRequest.newBuilder()
                     .uri(profileUri)
                     .header("Authorization", "Bearer " + minecraftClient.getSession().getAccessToken())

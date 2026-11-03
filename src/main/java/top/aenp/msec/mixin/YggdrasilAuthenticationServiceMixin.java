@@ -9,6 +9,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+import top.aenp.msec.auth.ServerMSecGameProfileRepository;
 import top.aenp.msec.auth.ServerMSecMinecraftSessionService;
 import top.aenp.msec.config.ServerConfigManager;
 import top.aenp.mwl.misc.EnvironmentDetector;
@@ -19,15 +20,17 @@ public class YggdrasilAuthenticationServiceMixin {
     private void createMinecraftSessionService(CallbackInfoReturnable<MinecraftSessionService> info) {
         if (!EnvironmentDetector.isPhyClient) {
             if (ServerConfigManager.getConfig().bootstrapConfig().modEnabled()) {
-                info.setReturnValue(new ServerMSecMinecraftSessionService());
+                info.setReturnValue(ServerMSecMinecraftSessionService.INSTANCE);
             }
         }
     }
 
-    @Inject(method = "createProfileRepository", at = @At(value = "HEAD"))
+    @Inject(method = "createProfileRepository", at = @At(value = "HEAD"), cancellable = true)
     private void createProfileRepository(CallbackInfoReturnable<GameProfileRepository> info) {
         if (!EnvironmentDetector.isPhyClient) {
-            //TODO Implement server profile repo.
+            if (ServerConfigManager.getConfig().bootstrapConfig().modEnabled()) {
+                info.setReturnValue(ServerMSecGameProfileRepository.INSTANCE);
+            }
         }
     }
 
