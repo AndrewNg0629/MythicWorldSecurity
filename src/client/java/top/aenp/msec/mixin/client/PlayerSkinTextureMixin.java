@@ -19,6 +19,7 @@ import top.aenp.msec.network.payloads.texture.s2c.PlayTextureResponseS2CPayload;
 import java.io.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.concurrent.TimeUnit;
 
 @Mixin(PlayerSkinTexture.class)
 public abstract class PlayerSkinTextureMixin {
@@ -44,39 +45,34 @@ public abstract class PlayerSkinTextureMixin {
             return CompletableFuture.runAsync(() -> {
                 String hash = url.substring(MSecNetwork.TEXTURE_DUMMY_URL_PREFIX.length());
                 CompletableFuture<PlayTextureResponseS2CPayload> future = ClientTextureService.getInstance().requestTexture(playerEntity.networkHandler, hash);
-                PlayTextureResponseS2CPayload payload = future.join();
-                if (payload.data() != null) {
+                try {
+                    PlayTextureResponseS2CPayload payload = future.get(15, TimeUnit.SECONDS);
                     byte[] textureData = payload.data();
-                    try {
-                        InputStream textureInputStream;
-                        if (cacheFile != null) {
-                            File directory = cacheFile.getParentFile();
-                            if (directory != null && !directory.exists()) {
-                                if (!directory.mkdirs()) {
-                                    throw new IOException(String.format("Failed to create parent directories for %s.", cacheFile));
-                                }
+                    InputStream textureInputStream;
+                    if (cacheFile != null) {
+                        File directory = cacheFile.getParentFile();
+                        if (directory != null && !directory.exists()) {
+                            if (!directory.mkdirs()) {
+                                throw new IOException(String.format("Failed to create parent directories for %s.", cacheFile));
                             }
-                            try (FileOutputStream fileOutputStream = new FileOutputStream(cacheFile)) {
-                                fileOutputStream.write(textureData);
-                                textureInputStream = new FileInputStream(cacheFile);
-                            }
-                        } else {
-                            textureInputStream = new ByteArrayInputStream(textureData);
                         }
-                        MinecraftClient.getInstance().execute(() -> {
-                            NativeImage nativeImage = loadTexture(textureInputStream);
-                            if (nativeImage != null) {
-                                onTextureLoaded(nativeImage);
-                            }
-                        });
-                        ClientTextureService.getInstance().failedPlayerTextures.remove(hash);
-                    } catch (Exception e) {
-                        ClientTextureService.getInstance().failedPlayerTextures.add(hash);
-                        MythicWorldSecurity.LOGGER.error("Failed to inject texture.", e);
+                        try (FileOutputStream fileOutputStream = new FileOutputStream(cacheFile)) {
+                            fileOutputStream.write(textureData);
+                            textureInputStream = new FileInputStream(cacheFile);
+                        }
+                    } else {
+                        textureInputStream = new ByteArrayInputStream(textureData);
                     }
-                } else {
+                    MinecraftClient.getInstance().execute(() -> {
+                        NativeImage nativeImage = loadTexture(textureInputStream);
+                        if (nativeImage != null) {
+                            onTextureLoaded(nativeImage);
+                        }
+                    });
+                    ClientTextureService.getInstance().failedPlayerTextures.remove(hash);
+                } catch (Exception e) {
                     ClientTextureService.getInstance().failedPlayerTextures.add(hash);
-                    MythicWorldSecurity.LOGGER.warn("Failed to fetch texture {} from server.", hash);
+                    MythicWorldSecurity.LOGGER.warn("Failed to fetch and inject texture {} from server.", hash, e);
                 }
             }, executor);
         } else {

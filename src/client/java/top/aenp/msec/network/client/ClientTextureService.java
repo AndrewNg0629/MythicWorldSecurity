@@ -52,13 +52,12 @@ public class ClientTextureService {
             .create();
     private static ClientTextureService INSTANCE = null;
     public final CopyOnWriteArraySet<String> failedPlayerTextures = new CopyOnWriteArraySet<>();
-    private final HashMap<String, ClientTextureRequestEntry> textureRequests = new HashMap<>();
+    private final HashMap<String, CompletableFuture<PlayTextureResponseS2CPayload>> textureRequests = new HashMap<>();
     private final LinkedBlockingDeque<PlayTextureResponseS2CPayload> textureResponseQueue = new LinkedBlockingDeque<>();
     private final LinkedBlockingDeque<TextureCommandEntry> textureCommandQueue = new LinkedBlockingDeque<>();
     private final ReentrantLock lock = new ReentrantLock();
     private LocalTextureCache localTextureCache = null;
 
-    @SuppressWarnings("BusyWait")
     private ClientTextureService() {
         Runnable receptionTask = () -> {
             while (!Thread.currentThread().isInterrupted()) {
@@ -67,9 +66,9 @@ public class ClientTextureService {
                     try {
                         lock.lock();
                         String hash = payload.hash();
-                        ClientTextureRequestEntry entry = textureRequests.get(hash);
-                        if (entry != null) {
-                            entry.future.complete(payload);
+                        CompletableFuture<PlayTextureResponseS2CPayload> future = textureRequests.get(hash);
+                        if (future != null) {
+                            future.complete(payload);
                             textureRequests.remove(hash);
                         }
                     } finally {
@@ -134,33 +133,8 @@ public class ClientTextureService {
                 }
             }
         };
-        Runnable cleaner = () -> {
-            while (!Thread.currentThread().isInterrupted()) {
-                try {
-                    try {
-                        lock.lock();
-                        Iterator<Map.Entry<String, ClientTextureRequestEntry>> iterator = textureRequests.entrySet().iterator();
-                        while (iterator.hasNext()) {
-                            Map.Entry<String, ClientTextureRequestEntry> entry = iterator.next();
-                            if (entry.getValue().requestedOn + 30000 <= System.currentTimeMillis()) {
-                                entry.getValue().future.complete(new PlayTextureResponseS2CPayload(entry.getKey(), null));
-                                iterator.remove();
-                            }
-                        }
-                    } finally {
-                        lock.unlock();
-                    }
-                    Thread.sleep(60000);
-                } catch (InterruptedException e) {
-                    break;
-                } catch (Exception e) {
-                    MythicWorldSecurity.LOGGER.error("Exception in client requests cleanup thread.", e);
-                }
-            }
-        };
         Thread.startVirtualThread(receptionTask).setName("MSec Texture Receiver");
         Thread.startVirtualThread(commandExecTask).setName("MSec Server Texture Command Executor");
-        Thread.startVirtualThread(cleaner).setName("MSec Zombie Requests Cleaner");
     }
 
     private static BufferedImage fetchBufferedImageFromHttp(String url) throws IOException {
@@ -239,12 +213,12 @@ public class ClientTextureService {
     public CompletableFuture<PlayTextureResponseS2CPayload> requestTexture(ClientPlayNetworkHandler handler, String hash) {
         try {
             lock.lock();
-            ClientTextureRequestEntry existingEntry = textureRequests.get(hash);
-            if (existingEntry != null) {
-                return existingEntry.future;
+            CompletableFuture<PlayTextureResponseS2CPayload> existingFuture = textureRequests.get(hash);
+            if (existingFuture!= null) {
+                return existingFuture;
             } else {
                 CompletableFuture<PlayTextureResponseS2CPayload> future = new CompletableFuture<>();
-                textureRequests.put(hash, new ClientTextureRequestEntry(future, System.currentTimeMillis()));
+                textureRequests.put(hash, future);
                 handler.getConnection().send(new CustomPayloadC2SPacket(new PlayTextureRequestC2SPayload(hash)));
                 return future;
             }
@@ -292,10 +266,6 @@ public class ClientTextureService {
 
     public void onTextureCommand(LoginTextureCommandS2CPayload payload, ClientConnection connection) {
         textureCommandQueue.add(new TextureCommandEntry(payload.command(), connection));
-    }
-
-    private record ClientTextureRequestEntry(CompletableFuture<PlayTextureResponseS2CPayload> future,
-                                             long requestedOn) {
     }
 
     private record TextureCommandEntry(LoginTextureCommandS2CPayload.Command command, ClientConnection connection) {
