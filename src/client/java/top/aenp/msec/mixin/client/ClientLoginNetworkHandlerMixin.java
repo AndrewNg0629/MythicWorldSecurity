@@ -3,10 +3,8 @@ package top.aenp.msec.mixin.client;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.network.ClientLoginNetworkHandler;
-import net.minecraft.client.network.CookieStorage;
 import net.minecraft.client.network.ServerInfo;
 import net.minecraft.network.ClientConnection;
-import net.minecraft.network.packet.c2s.login.LoginQueryResponseC2SPacket;
 import net.minecraft.text.Text;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -47,7 +45,7 @@ public class ClientLoginNetworkHandlerMixin implements MSecClientLoginNetworkHan
         if (MinecraftClient.getInstance().currentScreen instanceof ServerIdentityTrustScreen serverIdentityTrustScreen) {
             serverIdentityTrustScreen.setRemainingTime(payload.remainingSeconds());
         }
-        connection.send(new LoginQueryResponseC2SPacket(MythicNetwork.QUERY_ID, new LoginHeartbeatC2SPayload()));
+        connection.send(MythicNetwork.createLoginC2SPacket(LoginHeartbeatC2SPayload.INSTANCE));
     }
 
     @Override
@@ -56,7 +54,7 @@ public class ClientLoginNetworkHandlerMixin implements MSecClientLoginNetworkHan
     }
 
     @Inject(method = "<init>", at = @At(value = "RETURN"))
-    private void init(ClientConnection connection, MinecraftClient client, ServerInfo serverInfo, Screen parentScreen, boolean newWorld, Duration worldLoadTime, Consumer<Text> statusConsumer, CookieStorage cookieStorage, CallbackInfo ci) {
+    private void init(ClientConnection connection, MinecraftClient client, ServerInfo serverInfo, Screen parentScreen, boolean newWorld, Duration worldLoadTime, Consumer<Text> statusConsumer, CallbackInfo ci) {
         msecClientHandshakeHandler = new MSecClientLoginHandshakeHandlerImpl(connection, statusConsumer);
     }
 }

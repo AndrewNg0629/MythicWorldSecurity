@@ -11,7 +11,7 @@ import top.aenp.msec.auth.client.ClientMSecGameProfileRepository;
 import top.aenp.msec.auth.client.ClientMSecMinecraftSessionService;
 import top.aenp.mwl.misc.EnvironmentDetector;
 
-@Mixin(value = YggdrasilAuthenticationService.class, priority = 990)
+@Mixin(value = YggdrasilAuthenticationService.class, priority = 990, remap = false)
 public class ClientYggdrasilAuthenticationServiceMixin {
     @Inject(method = "createMinecraftSessionService", at = @At(value = "RETURN"), cancellable = true)
     private void createMinecraftSessionService(CallbackInfoReturnable<MinecraftSessionService> info) {

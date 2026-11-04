@@ -46,7 +46,7 @@ public class UUIDBySourceRepository {
             Files.deleteIfExists(uuidRepoTempFilePath);
             try (InputStreamReader reader = new InputStreamReader(Files.newInputStream(uuidRepoFilePath))) {
                 JsonElement jsonElement = JsonParser.parseReader(reader);
-                Map<String, Map<UUID, UUID>> mapFromFile = UUID_REPO_CODEC.parse(JsonOps.INSTANCE, jsonElement).getOrThrow();
+                Map<String, Map<UUID, UUID>> mapFromFile = UUID_REPO_CODEC.parse(JsonOps.INSTANCE, jsonElement).getOrThrow(false, message -> {});
                 inMemoryCache.putAll(mapFromFile);
             } catch (Exception e) {
                 throw new IOException("Failed to read UUID repository from file!", e);
@@ -164,7 +164,7 @@ public class UUIDBySourceRepository {
     private void writeFileAtomically(Map<String, Map<UUID, UUID>> map) throws IOException {
         ensureFile();
         Files.deleteIfExists(uuidRepoTempFilePath);
-        JsonElement jsonElement = UUID_REPO_CODEC.encodeStart(JsonOps.INSTANCE, map).getOrThrow(message -> new IOException(String.format("Failed to encode UUID repository!: %s", message)));
+        JsonElement jsonElement = UUID_REPO_CODEC.encodeStart(JsonOps.INSTANCE, map).getOrThrow(false, message -> {});
         try (OutputStream outputStream = Files.newOutputStream(uuidRepoTempFilePath)) {
             outputStream.write(GSON.toJson(jsonElement).getBytes(StandardCharsets.UTF_8));
         }

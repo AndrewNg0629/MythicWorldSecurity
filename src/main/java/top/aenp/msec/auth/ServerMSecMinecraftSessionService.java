@@ -1,11 +1,8 @@
 package top.aenp.msec.auth;
 
 import com.mojang.authlib.GameProfile;
-import com.mojang.authlib.yggdrasil.ProfileActionType;
-import com.mojang.authlib.yggdrasil.ProfileResult;
 import com.mojang.authlib.yggdrasil.response.MinecraftProfilePropertiesResponse;
-import com.mojang.authlib.yggdrasil.response.ProfileAction;
-import com.mojang.util.UndashedUuid;
+import com.mojang.util.UUIDTypeAdapter;
 import top.aenp.msec.MythicWorldSecurity;
 import top.aenp.msec.Utils;
 import top.aenp.msec.config.ServerConfigManager;
@@ -20,7 +17,6 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
-import java.util.stream.Collectors;
 
 public class ServerMSecMinecraftSessionService extends AbstractMSecMinecraftSessionService {
     public static final ServerMSecMinecraftSessionService INSTANCE = new ServerMSecMinecraftSessionService();
@@ -32,23 +28,27 @@ public class ServerMSecMinecraftSessionService extends AbstractMSecMinecraftSess
     }
 
     @Override
-    public void joinServer(UUID profileId, String authenticationToken, String serverId) {
-        throw new UnsupportedOperationException();
+    public void joinServer(GameProfile profile, String authenticationToken, String serverId) {
+        throw new UnsupportedOperationException("Join server shouldn't be called don a server!");
     }
 
     @Override
-    public ProfileResult hasJoinedServer(String profileName, String apiNonce, InetAddress clientAddress) {
-        throw new UnsupportedOperationException();
+    public GameProfile hasJoinedServer(GameProfile user, String serverId, InetAddress address) {
+        throw new UnsupportedOperationException("This method shouldn't be called.");
     }
 
     @Override
-    public ProfileResult fetchProfile(UUID profileId, boolean requireSecure) {
+    public GameProfile fillProfileProperties(GameProfile profile, boolean requireSecure) {
+        UUID profileId = profile.getId();
+        if (profileId == null) {
+            return profile;
+        }
         try {
             lock.readLock().lock();
             ProfileResultCacheEntry cacheEntry = profileByUUIDCache.get(profileId);
             if (cacheEntry != null) {
                 if (cacheEntry.cachedOn + 1000L * CACHE_EXPIRE_TIME >= System.currentTimeMillis()) {
-                    return cacheEntry.profileResult;
+                    return cacheEntry.gameProfile;
                 }
             }
         } finally {
@@ -59,37 +59,37 @@ public class ServerMSecMinecraftSessionService extends AbstractMSecMinecraftSess
             ProfileResultCacheEntry cacheEntry = profileByUUIDCache.get(profileId);
             if (cacheEntry != null) {
                 if (cacheEntry.cachedOn + 1000L * CACHE_EXPIRE_TIME >= System.currentTimeMillis()) {
-                    return cacheEntry.profileResult;
+                    return cacheEntry.gameProfile;
                 }
             }
-            ProfileResult profileResult = fetchProfileUncached(profileId);
-            if (profileResult != null) {
-                ProfileResultCacheEntry newCacheEntry = new ProfileResultCacheEntry(profileResult, System.currentTimeMillis());
+            GameProfile gameProfile = fetchProfileUncached(profileId);
+            if (gameProfile != null) {
+                ProfileResultCacheEntry newCacheEntry = new ProfileResultCacheEntry(gameProfile, System.currentTimeMillis());
                 if (profileByUUIDCache.size() >= 1000) {
                     profileByUUIDCache.entrySet().removeIf(mapEntry -> mapEntry.getValue().cachedOn + 1000L * CACHE_EXPIRE_TIME < System.currentTimeMillis());
                 }
                 profileByUUIDCache.put(profileId, newCacheEntry);
-                return profileResult;
+                return gameProfile;
             } else {
-                return null;
+                return profile;
             }
         } finally {
             lock.writeLock().unlock();
         }
     }
 
-    public ProfileResult fetchProfileUncached(UUID profileId) {
+    public GameProfile fetchProfileUncached(UUID profileId) {
         UUIDBySourceRepository.UUIDSearchResult searchResult = UUIDBySourceRepository.getInstance().searchAndReverseMapUUID(profileId);
         UUID requestUUID;
         if (searchResult == null) {
             for (String trialConfigName : ServerConfigManager.getConfig().bootstrapConfig().unknownUUIDMatchSequence()) {
-                ProfileResult profileResult = fetchProfileAndSuffix(trialConfigName, profileId);
-                if (profileResult != null) {
-                    UUID uuid = UUIDBySourceRepository.getInstance().mapUUID(trialConfigName, profileResult.profile().getId());
+                GameProfile gameProfile = fetchProfileAndSuffix(trialConfigName, profileId);
+                if (gameProfile != null) {
+                    UUID uuid = UUIDBySourceRepository.getInstance().mapUUID(trialConfigName, gameProfile.getId());
                     if (uuid != null) {
-                        GameProfile rewrittenProfile = new GameProfile(uuid, profileResult.profile().getName());
-                        rewrittenProfile.getProperties().putAll(profileResult.profile().getProperties());
-                        return new ProfileResult(rewrittenProfile, profileResult.actions());
+                        GameProfile rewrittenProfile = new GameProfile(uuid, gameProfile.getName());
+                        rewrittenProfile.getProperties().putAll(gameProfile.getProperties());
+                        return rewrittenProfile;
                     } else {
                         return null;
                     }
@@ -98,18 +98,18 @@ public class ServerMSecMinecraftSessionService extends AbstractMSecMinecraftSess
             return null;
         } else {
             requestUUID = searchResult.reverseMappedUUID();
-            ProfileResult profileResult = fetchProfileAndSuffix(searchResult.sourceConfigName(), requestUUID);
-            if (profileResult != null) {
-                GameProfile rewrittenProfile = new GameProfile(profileId, profileResult.profile().getName());
-                rewrittenProfile.getProperties().putAll(profileResult.profile().getProperties());
-                return new ProfileResult(rewrittenProfile, profileResult.actions());
+             GameProfile gameProfile = fetchProfileAndSuffix(searchResult.sourceConfigName(), requestUUID);
+            if (gameProfile != null) {
+                GameProfile rewrittenProfile = new GameProfile(profileId, gameProfile.getName());
+                rewrittenProfile.getProperties().putAll(gameProfile.getProperties());
+                return rewrittenProfile;
             } else {
                 return null;
             }
         }
     }
 
-    private ProfileResult fetchProfileAndSuffix(String apiConfigName, UUID requestUUID) {
+    private GameProfile fetchProfileAndSuffix(String apiConfigName, UUID requestUUID) {
         String suffixExemptedName = ServerConfigManager.getInstance().getSuffixExemptedSourceName();
         apiConfigName = apiConfigName.toLowerCase(Locale.ROOT);
         if (apiConfigName.equals("offline")) {
@@ -141,17 +141,14 @@ public class ServerMSecMinecraftSessionService extends AbstractMSecMinecraftSess
             if (profileResponse == null) {
                 return null;
             }
-            GameProfile gameProfile = profileResponse.toProfile();
-            String profileName = gameProfile.getName();
+            String profileName = profileResponse.getName();
+            UUID profileId = profileResponse.getId();
             if (suffixInfo != null) {
                 profileName = profileName + suffixInfo.primarySuffix();
             }
-            GameProfile rewrittenProfile = new GameProfile(gameProfile.getId(), profileName);
-            rewrittenProfile.getProperties().putAll(gameProfile.getProperties());
-            Set<ProfileActionType> profileActions = profileResponse.profileActions().stream()
-                    .map(ProfileAction::type)
-                    .collect(Collectors.toSet());
-            return new ProfileResult(rewrittenProfile, profileActions);
+            GameProfile rewrittenProfile = new GameProfile(profileId, profileName);
+            rewrittenProfile.getProperties().putAll(profileResponse.getProperties());
+            return rewrittenProfile;
         }
     }
 
@@ -161,7 +158,7 @@ public class ServerMSecMinecraftSessionService extends AbstractMSecMinecraftSess
             if (!slashedSessionHost.endsWith("/")) {
                 slashedSessionHost = slashedSessionHost + "/";
             }
-            URI requestUri = new URI(slashedSessionHost + "profile/" + UndashedUuid.toString(uuid) + "?unsigned=true");
+            URI requestUri = new URI(slashedSessionHost + "profile/" + UUIDTypeAdapter.fromUUID(uuid) + "?unsigned=true");
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(requestUri)
                     .GET()
@@ -189,6 +186,6 @@ public class ServerMSecMinecraftSessionService extends AbstractMSecMinecraftSess
         }
     }
 
-    public record ProfileResultCacheEntry(ProfileResult profileResult, long cachedOn) {
+    public record ProfileResultCacheEntry(GameProfile gameProfile, long cachedOn) {
     }
 }

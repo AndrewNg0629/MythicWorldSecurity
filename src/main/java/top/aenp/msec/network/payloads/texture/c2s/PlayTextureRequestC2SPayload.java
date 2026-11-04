@@ -1,15 +1,14 @@
 package top.aenp.msec.network.payloads.texture.c2s;
 
 import net.minecraft.network.PacketByteBuf;
-import net.minecraft.network.codec.PacketCodec;
-import net.minecraft.network.packet.CustomPayload;
 import net.minecraft.util.Identifier;
 import top.aenp.msec.network.interfaces.MSecServerPlayNetworkHandler;
 import top.aenp.mwl.network.v2.interfaces.MythicServerPlayNetworkHandler;
+import top.aenp.mwl.network.v2.interfaces.PacketCodec;
 import top.aenp.mwl.network.v2.payloads.interfaces.MythicPlayC2SPayload;
 
 public record PlayTextureRequestC2SPayload(String textureHash) implements MythicPlayC2SPayload {
-    public static final Id<PlayTextureRequestC2SPayload> ID = new Id<>(Identifier.of("msec", "play_texture_request"));
+    public static final Identifier ID = new Identifier("msec", "play_texture_request");
     public static final PacketCodec<PacketByteBuf, PlayTextureRequestC2SPayload> CODEC = new PacketCodec<>() {
         @Override
         public PlayTextureRequestC2SPayload decode(PacketByteBuf buf) {
@@ -28,7 +27,7 @@ public record PlayTextureRequestC2SPayload(String textureHash) implements Mythic
     }
 
     @Override
-    public Id<? extends CustomPayload> getId() {
+    public Identifier mythicId() {
         return ID;
     }
 }

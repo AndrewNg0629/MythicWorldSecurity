@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonParser;
+import com.mojang.authlib.Agent;
 import com.mojang.authlib.GameProfile;
 import com.mojang.authlib.GameProfileRepository;
 import com.mojang.authlib.ProfileLookupCallback;
@@ -40,7 +41,7 @@ public class ServerMSecGameProfileRepository implements GameProfileRepository {
     }
 
     @Override
-    public void findProfilesByNames(String[] names, ProfileLookupCallback callback) {
+    public void findProfilesByNames(String[] names, Agent agent, ProfileLookupCallback callback) {
         Set<String> nameSet = Set.copyOf(List.of(names));
         Map<String, ProfileQueryResultEntry> lookupResult = findProfilesByNamesAsMap(nameSet);
         for (Map.Entry<String, ProfileQueryResultEntry> entry : lookupResult.entrySet()) {
@@ -49,9 +50,9 @@ public class ServerMSecGameProfileRepository implements GameProfileRepository {
                 callback.onProfileLookupSucceeded(queryResult.profile);
             } else {
                 if (queryResult.isNotFound) {
-                    callback.onProfileLookupFailed(entry.getKey(), new ProfileNotFoundException("Requested profile was not found."));
+                    callback.onProfileLookupFailed(new GameProfile(null, entry.getKey()), new ProfileNotFoundException("Requested profile was not found."));
                 } else {
-                    callback.onProfileLookupFailed(entry.getKey(), new AuthenticationException("Unknown exception."));
+                    callback.onProfileLookupFailed(new GameProfile(null, entry.getKey()), new AuthenticationException("Unknown exception."));
                 }
             }
         }

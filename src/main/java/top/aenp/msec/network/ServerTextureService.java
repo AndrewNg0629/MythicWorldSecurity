@@ -1,6 +1,5 @@
 package top.aenp.msec.network;
 
-import net.minecraft.network.packet.s2c.common.CustomPayloadS2CPacket;
 import net.minecraft.server.network.ServerLoginNetworkHandler;
 import net.minecraft.server.network.ServerPlayNetworkHandler;
 import top.aenp.msec.MythicWorldSecurity;
@@ -8,6 +7,7 @@ import top.aenp.msec.Utils;
 import top.aenp.msec.network.payloads.texture.c2s.LoginTextureDataC2SPayload;
 import top.aenp.msec.network.payloads.texture.c2s.PlayTextureRequestC2SPayload;
 import top.aenp.msec.network.payloads.texture.s2c.PlayTextureResponseS2CPayload;
+import top.aenp.mwl.network.v2.MythicNetwork;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
@@ -40,7 +40,7 @@ public class ServerTextureService {
                 try {
                     RequestEntry entry = requestQueue.take();
                     PlayTextureResponseS2CPayload payload = computeResponsePayload(entry);
-                    entry.handler.sendPacket(new CustomPayloadS2CPacket(payload));
+                    entry.handler.sendPacket(MythicNetwork.createPlayS2CPacket(payload));
                 } catch (InterruptedException e) {
                     break;
                 } catch (Exception e) {
@@ -58,7 +58,7 @@ public class ServerTextureService {
                 }
             }
         };
-        Runnable cacheCleaner = () -> {
+        Runnable cacheCleaningTask = () -> {
             while (!Thread.currentThread().isInterrupted()) {
                 try {
                     try {
@@ -75,9 +75,15 @@ public class ServerTextureService {
                 }
             }
         };
-        Thread.startVirtualThread(distributionTask).setName("MSec Texture Distributor");
-        Thread.startVirtualThread(collectTask).setName("MSec Texture Collector");
-        Thread.startVirtualThread(cacheCleaner).setName("MSec Server Cache Cleaner");
+        Thread distributorThread = new Thread(distributionTask, "MSec Texture Distributor");
+        distributorThread.setDaemon(true);
+        distributorThread.start();
+        Thread collectoinThread = new Thread(collectTask, "MSec Texture Collector");
+        collectoinThread.setDaemon(true);
+        collectoinThread.start();
+        Thread cleanerThread = new Thread(cacheCleaningTask, "MSec Server Cache Cleaner");
+        cleanerThread.setDaemon(true);
+        cleanerThread.start();
     }
 
     public static ServerTextureService getInstance() {

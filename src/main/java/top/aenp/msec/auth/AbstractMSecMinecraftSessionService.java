@@ -3,10 +3,8 @@ package top.aenp.msec.auth;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.mojang.authlib.GameProfile;
-import com.mojang.authlib.SignatureState;
 import com.mojang.authlib.minecraft.InsecurePublicKeyException;
 import com.mojang.authlib.minecraft.MinecraftProfileTexture;
-import com.mojang.authlib.minecraft.MinecraftProfileTextures;
 import com.mojang.authlib.minecraft.MinecraftSessionService;
 import com.mojang.authlib.properties.Property;
 import com.mojang.authlib.properties.PropertyMap;
@@ -29,41 +27,35 @@ public abstract class AbstractMSecMinecraftSessionService implements MinecraftSe
             .create();
 
     @Override
-    public Property getPackedTextures(GameProfile profile) {
-        return profile.getProperties().get("textures").stream().findFirst().orElse(null);
-    }
-
-    @Override
-    public MinecraftProfileTextures unpackTextures(Property packedTextures) {
+    public Map<MinecraftProfileTexture.Type, MinecraftProfileTexture> getTextures(GameProfile profile, boolean requireSecure) throws InsecurePublicKeyException {
+        Property packedTextures = profile.getProperties().get("textures").stream().findFirst().orElse(null);
+        if (packedTextures == null) {
+            return Map.of();
+        }
         MinecraftTexturesPayload texturesPayload;
         try {
-            String jsonString = new String(Base64.getDecoder().decode(packedTextures.value()), StandardCharsets.UTF_8);
+            String jsonString = new String(Base64.getDecoder().decode(packedTextures.getValue()), StandardCharsets.UTF_8);
             texturesPayload = PROFILE_GSON.fromJson(jsonString, MinecraftTexturesPayload.class);
         } catch (Exception e) {
             MythicWorldSecurity.LOGGER.error("Failed to decode textures payload", e);
-            return MinecraftProfileTextures.EMPTY;
+            return Map.of();
         }
-        if (texturesPayload == null || texturesPayload.textures() == null || texturesPayload.textures().isEmpty()) {
-            return MinecraftProfileTextures.EMPTY;
+        if (texturesPayload == null || texturesPayload.getTextures() == null || texturesPayload.getTextures().isEmpty()) {
+            return Map.of();
         }
-        Map<MinecraftProfileTexture.Type, MinecraftProfileTexture> texturesByType = texturesPayload.textures();
+        Map<MinecraftProfileTexture.Type, MinecraftProfileTexture> texturesByType = texturesPayload.getTextures();
         for (Map.Entry<MinecraftProfileTexture.Type, MinecraftProfileTexture> entry : texturesByType.entrySet()) {
             String url = entry.getValue().getUrl();
             if (!(TextureUrlChecker.isAllowedTextureDomain(url) || MSecNetwork.isAllowedTextureDomain(url))) {
                 MythicWorldSecurity.LOGGER.error("Textures payload contains blocked domain: {}", url);
-                return MinecraftProfileTextures.EMPTY;
+                return Map.of();
             }
         }
-        return new MinecraftProfileTextures(
-                texturesByType.get(MinecraftProfileTexture.Type.SKIN),
-                texturesByType.get(MinecraftProfileTexture.Type.CAPE),
-                texturesByType.get(MinecraftProfileTexture.Type.ELYTRA),
-                SignatureState.SIGNED
-        );
+        return texturesByType;
     }
 
     @Override
     public String getSecurePropertyValue(Property property) throws InsecurePublicKeyException {
-        return property.value();
+        return property.getValue();
     }
 }

@@ -1,19 +1,19 @@
 package top.aenp.msec.network.payloads.crypto.c2s;
 
 import net.minecraft.network.PacketByteBuf;
-import net.minecraft.network.codec.PacketCodec;
 import net.minecraft.util.Identifier;
 import top.aenp.msec.network.MSecNetwork;
 import top.aenp.msec.network.interfaces.MSecServerLoginNetworkHandler;
 import top.aenp.msec.network.interfaces.SignedPayload;
 import top.aenp.mwl.network.v2.interfaces.MythicServerLoginNetworkHandler;
+import top.aenp.mwl.network.v2.interfaces.PacketCodec;
 import top.aenp.mwl.network.v2.payloads.interfaces.MythicLoginC2SPayload;
 
 import java.io.ByteArrayOutputStream;
 import java.security.PublicKey;
 
 public record LoginX25519C2SPayload(PublicKey clientX25519PublicKey) implements MythicLoginC2SPayload, SignedPayload {
-    public static final Identifier ID = Identifier.of("msec", "login_x25519_c2s");
+    public static final Identifier ID = new Identifier("msec", "login_x25519_c2s");
     public static final PacketCodec<PacketByteBuf, LoginX25519C2SPayload> CODEC = new PacketCodec<>() {
         @Override
         public LoginX25519C2SPayload decode(PacketByteBuf buf) {

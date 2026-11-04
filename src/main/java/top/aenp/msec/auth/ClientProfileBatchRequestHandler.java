@@ -1,9 +1,9 @@
 package top.aenp.msec.auth;
 
-import net.minecraft.network.packet.s2c.common.CustomPayloadS2CPacket;
 import net.minecraft.server.network.ServerPlayNetworkHandler;
 import top.aenp.msec.MythicWorldSecurity;
 import top.aenp.msec.network.payloads.auth.s2c.PlayProfileBatchResponseS2CPayload;
+import top.aenp.mwl.network.v2.MythicNetwork;
 
 import java.util.Map;
 import java.util.Set;
@@ -20,7 +20,7 @@ public class ClientProfileBatchRequestHandler {
                     ProfileBatchRequestEntry queryEntry = queue.take();
                     Map<String, ServerMSecGameProfileRepository.ProfileQueryResultEntry> lookupResult = ServerMSecGameProfileRepository.INSTANCE.findProfilesByNamesAsMap(queryEntry.names);
                     PlayProfileBatchResponseS2CPayload payload = new PlayProfileBatchResponseS2CPayload(queryEntry.queryId, lookupResult);
-                    queryEntry.handler.sendPacket(new CustomPayloadS2CPacket(payload));
+                    queryEntry.handler.sendPacket(MythicNetwork.createPlayS2CPacket(payload));
                 } catch (InterruptedException e) {
                     break;
                 } catch (Exception e) {
@@ -28,7 +28,9 @@ public class ClientProfileBatchRequestHandler {
                 }
             }
         };
-        Thread.startVirtualThread(handlingTask).setName("MSec Client Profile BATCH Request Handler");
+        Thread handlerThread = new Thread(handlingTask, "MSec Client Profile Batch Request Handler");
+        handlerThread.setDaemon(true);
+        handlerThread.start();
     }
 
     public void onClientBatchRequest(ServerPlayNetworkHandler handler, int queryId, Set<String> names) {

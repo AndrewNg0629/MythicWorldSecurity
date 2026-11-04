@@ -1,14 +1,14 @@
 package top.aenp.msec.network.payloads.auth.s2c;
 
 import net.minecraft.network.PacketByteBuf;
-import net.minecraft.network.codec.PacketCodec;
+import top.aenp.mwl.network.v2.interfaces.PacketCodec;
 import net.minecraft.util.Identifier;
 import top.aenp.msec.network.interfaces.MSecClientLoginNetworkHandler;
 import top.aenp.mwl.network.v2.interfaces.MythicClientLoginNetworkHandler;
 import top.aenp.mwl.network.v2.payloads.interfaces.MythicLoginS2CPayload;
 
 public record LoginAuthSourceRequestS2CPayload() implements MythicLoginS2CPayload {
-    public static final Identifier ID = Identifier.of("msec", "login_auth_source_request");
+    public static final Identifier ID = new Identifier("msec", "login_auth_source_request");
     public static final PacketCodec<PacketByteBuf, LoginAuthSourceRequestS2CPayload> CODEC = new PacketCodec<>() {
         @Override
         public LoginAuthSourceRequestS2CPayload decode(PacketByteBuf buf) {

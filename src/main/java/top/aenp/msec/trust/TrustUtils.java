@@ -2,6 +2,7 @@ package top.aenp.msec.trust;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.mojang.datafixers.util.Either;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.JsonOps;
@@ -153,7 +154,7 @@ public class TrustUtils {
             } else {
                 try {
                     JsonObject json = JsonParser.parseString(httpResponse.body()).getAsJsonObject();
-                    return HttpsMetadataEntry.METADATA_MAP_CODEC.parse(JsonOps.INSTANCE, json).getOrThrow();
+                    return HttpsMetadataEntry.METADATA_MAP_CODEC.parse(JsonOps.INSTANCE, json).getOrThrow(false, message -> {});
                 } catch (Exception e) {
                     throw new IOException("Failed to parse metadata from the server.", e);
                 }
@@ -166,9 +167,10 @@ public class TrustUtils {
     public static DataResult<Set<String>> decodeAddressStringAsSet(List<String> list, boolean dns) {
         HashSet<String> set = new HashSet<>();
         for (String rawAddress : list) {
-            DataResult<String> stringResult = HOST_STRING_NORMALIZER.apply(rawAddress);
-            if (stringResult.isSuccess()) {
-                String normalizedAddress = stringResult.getOrThrow();
+            Either<String, DataResult.PartialResult<String>> either = HOST_STRING_NORMALIZER.apply(rawAddress).get();
+            Optional<String> stringOptional = either.left();
+            if (stringOptional.isPresent()) {
+                String normalizedAddress = stringOptional.get();
                 if (dns) {
                     if (isDnsHttpsApplicable(normalizedAddress.split(":")[0])) {
                         set.add(normalizedAddress);
@@ -183,7 +185,7 @@ public class TrustUtils {
                     }
                 }
             } else {
-                return DataResult.error(() -> stringResult.error().orElseThrow().message());
+                return DataResult.error(() -> either.right().orElseThrow().message());
             }
         }
         return DataResult.success(set);

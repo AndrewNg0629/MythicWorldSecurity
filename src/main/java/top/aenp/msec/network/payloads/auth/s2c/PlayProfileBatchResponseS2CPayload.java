@@ -2,13 +2,11 @@ package top.aenp.msec.network.payloads.auth.s2c;
 
 import com.mojang.authlib.GameProfile;
 import net.minecraft.network.PacketByteBuf;
-import net.minecraft.network.codec.PacketCodec;
-import net.minecraft.network.codec.PacketCodecs;
-import net.minecraft.network.packet.CustomPayload;
 import net.minecraft.util.Identifier;
 import top.aenp.msec.auth.ServerMSecGameProfileRepository;
 import top.aenp.msec.network.interfaces.MSecClientPlayNetworkHandler;
 import top.aenp.mwl.network.v2.interfaces.MythicClientPlayNetworkHandler;
+import top.aenp.mwl.network.v2.interfaces.PacketCodec;
 import top.aenp.mwl.network.v2.payloads.interfaces.MythicPlayS2CPayload;
 
 import java.util.HashMap;
@@ -16,7 +14,7 @@ import java.util.Map;
 import java.util.Set;
 
 public record PlayProfileBatchResponseS2CPayload(int queryId, Map<String, ServerMSecGameProfileRepository.ProfileQueryResultEntry> queryResult) implements MythicPlayS2CPayload {
-    public static final Id<PlayProfileBatchResponseS2CPayload> ID = new Id<>(Identifier.of("msec", "play_profile_lookup_callback_s2c"));
+    public static final Identifier ID = new Identifier("msec", "play_profile_batch_response_s2c");
     public static final PacketCodec<PacketByteBuf, PlayProfileBatchResponseS2CPayload> CODEC = new PacketCodec<>() {
         @Override
         public PlayProfileBatchResponseS2CPayload decode(PacketByteBuf buf) {
@@ -28,7 +26,7 @@ public record PlayProfileBatchResponseS2CPayload(int queryId, Map<String, Server
                 GameProfile gameProfile = null;
                 boolean isGameProfilePresent = buf.readBoolean();
                 if (isGameProfilePresent) {
-                    gameProfile = PacketCodecs.GAME_PROFILE.decode(buf);
+                    gameProfile = buf.readGameProfile();
                 }
                 boolean isNotFound = buf.readBoolean();
                 ServerMSecGameProfileRepository.ProfileQueryResultEntry resultEntry = new ServerMSecGameProfileRepository.ProfileQueryResultEntry(gameProfile, isNotFound);
@@ -48,7 +46,7 @@ public record PlayProfileBatchResponseS2CPayload(int queryId, Map<String, Server
                 boolean isProfilePresent = responseEntry.profile() != null;
                 buf.writeBoolean(isProfilePresent);
                 if (isProfilePresent) {
-                    PacketCodecs.GAME_PROFILE.encode(buf, responseEntry.profile());
+                    buf.writeGameProfile(responseEntry.profile());
                 }
                 buf.writeBoolean(responseEntry.isNotFound());
             }
@@ -61,7 +59,7 @@ public record PlayProfileBatchResponseS2CPayload(int queryId, Map<String, Server
     }
 
     @Override
-    public Id<? extends CustomPayload> getId() {
+    public Identifier mythicId() {
         return ID;
     }
 }

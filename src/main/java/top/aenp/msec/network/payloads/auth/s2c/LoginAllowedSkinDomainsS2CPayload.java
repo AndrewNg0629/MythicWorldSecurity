@@ -1,7 +1,7 @@
 package top.aenp.msec.network.payloads.auth.s2c;
 
 import net.minecraft.network.PacketByteBuf;
-import net.minecraft.network.codec.PacketCodec;
+import top.aenp.mwl.network.v2.interfaces.PacketCodec;
 import net.minecraft.util.Identifier;
 import top.aenp.msec.network.interfaces.MSecClientLoginNetworkHandler;
 import top.aenp.mwl.network.v2.interfaces.MythicClientLoginNetworkHandler;
@@ -11,7 +11,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 public record LoginAllowedSkinDomainsS2CPayload(Set<String> allowedSkinDomains) implements MythicLoginS2CPayload {
-    public static final Identifier ID = Identifier.of("msec", "login_allowed_skin_domains_s2c");
+    public static final Identifier ID = new Identifier("msec", "login_allowed_skin_domains_s2c");
     public static final PacketCodec<PacketByteBuf, LoginAllowedSkinDomainsS2CPayload> CODEC = new PacketCodec<>() {
         @Override
         public LoginAllowedSkinDomainsS2CPayload decode(PacketByteBuf buf) {

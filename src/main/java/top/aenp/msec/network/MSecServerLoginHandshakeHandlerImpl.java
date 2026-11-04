@@ -8,7 +8,6 @@ import com.mojang.authlib.yggdrasil.response.HasJoinedMinecraftServerResponse;
 import com.mojang.util.UUIDTypeAdapter;
 import net.minecraft.network.ClientConnection;
 import net.minecraft.network.packet.c2s.login.LoginHelloC2SPacket;
-import net.minecraft.network.packet.s2c.login.LoginQueryRequestS2CPacket;
 import net.minecraft.server.network.ServerLoginNetworkHandler;
 import net.minecraft.text.Text;
 import org.apache.commons.lang3.Validate;
@@ -250,8 +249,8 @@ public class MSecServerLoginHandshakeHandlerImpl implements MSecServerLoginHands
                     return;
                 }
                 HasJoinedMinecraftServerResponse apiResponse = PROFILE_GSON.fromJson(httpResponse.body(), HasJoinedMinecraftServerResponse.class);
-                if (apiResponse != null && apiResponse.id() != null && apiResponse.properties() != null) {
-                    UUID fetchedUUID = apiResponse.id();
+                if (apiResponse != null && apiResponse.getId() != null && apiResponse.getProperties() != null) {
+                    UUID fetchedUUID = apiResponse.getId();
                     UUID mappedUUID = UUIDBySourceRepository.getInstance().mapUUID(apiConfigName, fetchedUUID);
                     if (mappedUUID != null) {
                         String suffixedName = profileName;
@@ -261,7 +260,7 @@ public class MSecServerLoginHandshakeHandlerImpl implements MSecServerLoginHands
                         }
                         MythicWorldSecurity.LOGGER.info("UUID of player {} is {}", suffixedName, mappedUUID);
                         GameProfile rewrittenProfile = new GameProfile(mappedUUID, suffixedName);
-                        rewrittenProfile.getProperties().putAll(apiResponse.properties());
+                        rewrittenProfile.getProperties().putAll(apiResponse.getProperties());
                         state = MSecHandshakeState.SUCCESS;
                         sendPayload(new LoginAllowedSkinDomainsS2CPayload(ServerConfigManager.getInstance().getAllSkinDomains()));
                         serverLoginNetworkHandler.mythicworldsecurity$startVerify(rewrittenProfile);
@@ -276,7 +275,9 @@ public class MSecServerLoginHandshakeHandlerImpl implements MSecServerLoginHands
                 MythicWorldSecurity.LOGGER.error("Couldn't verify username because servers are unavailable.", e);
             }
         };
-        Thread.startVirtualThread(verifyTask).setName("MSec Player Authenticator");
+        Thread authenticatorThread = new Thread(verifyTask, "MSec Player Authenticator");
+        authenticatorThread.setDaemon(true);
+        authenticatorThread.start();
     }
 
     @Override
@@ -294,7 +295,7 @@ public class MSecServerLoginHandshakeHandlerImpl implements MSecServerLoginHands
         if (payload instanceof SignedPayload signedPayload) {
             signedPayload.writeMessageAsBytes(byteArrayOutputStream);
         }
-        clientConnection.send(new LoginQueryRequestS2CPacket(MythicNetwork.QUERY_ID, payload));
+        clientConnection.send(MythicNetwork.createLoginS2CPacket(payload));
     }
 
     private byte[] signTranscript() {

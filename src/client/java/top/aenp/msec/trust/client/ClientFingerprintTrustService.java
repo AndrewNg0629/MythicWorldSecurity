@@ -1,6 +1,7 @@
 package top.aenp.msec.trust.client;
 
 import com.google.gson.*;
+import com.mojang.datafixers.util.Either;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.JsonOps;
@@ -83,10 +84,12 @@ public class ClientFingerprintTrustService {
         try (InputStreamReader inputStreamReader = new InputStreamReader(Files.newInputStream(trustedFingerprintPath))) {
             JsonElement jsonElement = JsonParser.parseReader(inputStreamReader);
             DataResult<Map<String, TrustedFingerprintEntry>> mapDataResult = TRUSTED_FINGERPRINT_MAP_CODEC.parse(JsonOps.INSTANCE, jsonElement);
-            if (mapDataResult.isSuccess()) {
-                return new HashMap<>(mapDataResult.getOrThrow());
+            Either<Map<String, TrustedFingerprintEntry>, DataResult.PartialResult<Map<String, TrustedFingerprintEntry>>> either = mapDataResult.get();
+            Optional<Map<String, TrustedFingerprintEntry>> mapDataOptional = either.left();
+            if (mapDataOptional.isPresent()) {
+                return new HashMap<>(mapDataOptional.get());
             } else {
-                throw new IOException(String.format("Failed to parse trusted fingerprint file: %s", mapDataResult.error().map(DataResult.Error::message)));
+                throw new IOException(String.format("Failed to parse trusted fingerprint file: %s", either.right().orElseThrow().message()));
             }
         } catch (JsonParseException e) {
             throw new IOException("Failed to parse trusted fingerprint JSON!", e);
@@ -96,9 +99,11 @@ public class ClientFingerprintTrustService {
     public void writeFileAtomically(Map<String, TrustedFingerprintEntry> map) throws IOException {
         ensureFile();
         Files.deleteIfExists(tempFingerprintFilePath);
-        JsonElement jsonElement = TRUSTED_FINGERPRINT_MAP_CODEC.encodeStart(JsonOps.INSTANCE, map).getOrThrow(message -> new IOException(String.format("Failed to encode trusted fingerprint map: %s", message)));
+        JsonElement jsonElement = TRUSTED_FINGERPRINT_MAP_CODEC.encodeStart(JsonOps.INSTANCE, map).getOrThrow(false, message -> {});
         try (OutputStream outputStream = Files.newOutputStream(tempFingerprintFilePath)) {
             outputStream.write(GSON.toJson(jsonElement).getBytes(StandardCharsets.UTF_8));
+        } catch (Exception e) {
+            throw new IOException("Failed to encode trusted fingerprint map.", e);
         }
         try {
             Files.move(tempFingerprintFilePath, trustedFingerprintPath, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);

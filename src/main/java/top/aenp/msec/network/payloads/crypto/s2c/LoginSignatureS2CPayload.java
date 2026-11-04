@@ -1,14 +1,14 @@
 package top.aenp.msec.network.payloads.crypto.s2c;
 
 import net.minecraft.network.PacketByteBuf;
-import net.minecraft.network.codec.PacketCodec;
 import net.minecraft.util.Identifier;
 import top.aenp.msec.network.interfaces.MSecClientLoginNetworkHandler;
 import top.aenp.mwl.network.v2.interfaces.MythicClientLoginNetworkHandler;
+import top.aenp.mwl.network.v2.interfaces.PacketCodec;
 import top.aenp.mwl.network.v2.payloads.interfaces.MythicLoginS2CPayload;
 
 public record LoginSignatureS2CPayload(byte[] serverSignature) implements MythicLoginS2CPayload {
-    public static final Identifier ID = Identifier.of("msec", "signature_s2c");
+    public static final Identifier ID = new Identifier("msec", "signature_s2c");
     public static final PacketCodec<PacketByteBuf, LoginSignatureS2CPayload> CODEC = new PacketCodec<>() {
         @Override
         public LoginSignatureS2CPayload decode(PacketByteBuf buf) {

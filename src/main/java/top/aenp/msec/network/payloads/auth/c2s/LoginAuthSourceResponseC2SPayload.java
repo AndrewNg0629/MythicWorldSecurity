@@ -1,11 +1,11 @@
 package top.aenp.msec.network.payloads.auth.c2s;
 
 import net.minecraft.network.PacketByteBuf;
-import net.minecraft.network.codec.PacketCodec;
 import net.minecraft.util.Identifier;
 import top.aenp.msec.auth.YggdrasilApiMetadata;
 import top.aenp.msec.network.interfaces.MSecServerLoginNetworkHandler;
 import top.aenp.mwl.network.v2.interfaces.MythicServerLoginNetworkHandler;
+import top.aenp.mwl.network.v2.interfaces.PacketCodec;
 import top.aenp.mwl.network.v2.payloads.interfaces.MythicLoginC2SPayload;
 
 import java.util.HashSet;
@@ -14,7 +14,7 @@ public record LoginAuthSourceResponseC2SPayload(
         AuthSourceType authSourceType,
         YggdrasilApiMetadata yggdrasilApiMetadata
 ) implements MythicLoginC2SPayload {
-    public static final Identifier ID = Identifier.of("msec", "login_auth_source_response");
+    public static final Identifier ID = new Identifier("msec", "login_auth_source_response");
     public static final PacketCodec<PacketByteBuf, LoginAuthSourceResponseC2SPayload> CODEC = new PacketCodec<>() {
         @Override
         public LoginAuthSourceResponseC2SPayload decode(PacketByteBuf buf) {

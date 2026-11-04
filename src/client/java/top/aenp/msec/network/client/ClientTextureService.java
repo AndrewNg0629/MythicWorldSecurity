@@ -12,8 +12,6 @@ import com.mojang.util.UUIDTypeAdapter;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ClientPlayNetworkHandler;
 import net.minecraft.network.ClientConnection;
-import net.minecraft.network.packet.c2s.common.CustomPayloadC2SPacket;
-import net.minecraft.network.packet.c2s.login.LoginQueryResponseC2SPacket;
 import net.minecraft.text.Text;
 import top.aenp.msec.MythicWorldSecurity;
 import top.aenp.msec.Utils;
@@ -37,7 +35,6 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.zip.Deflater;
@@ -51,14 +48,12 @@ public class ClientTextureService {
             .registerTypeAdapter(PropertyMap.class, new PropertyMap.Serializer())
             .create();
     private static ClientTextureService INSTANCE = null;
-    public final CopyOnWriteArraySet<String> failedPlayerTextures = new CopyOnWriteArraySet<>();
     private final HashMap<String, ClientTextureRequestEntry> textureRequests = new HashMap<>();
     private final LinkedBlockingDeque<PlayTextureResponseS2CPayload> textureResponseQueue = new LinkedBlockingDeque<>();
     private final LinkedBlockingDeque<TextureCommandEntry> textureCommandQueue = new LinkedBlockingDeque<>();
     private final ReentrantLock lock = new ReentrantLock();
     private LocalTextureCache localTextureCache = null;
 
-    @SuppressWarnings("BusyWait")
     private ClientTextureService() {
         Runnable receptionTask = () -> {
             while (!Thread.currentThread().isInterrupted()) {
@@ -104,7 +99,7 @@ public class ClientTextureService {
                                     capeHash = Utils.hashBytes1(encodedCape);
                                 }
                                 LoginTextureMetadataC2SPayload textureMetadataPayload = new LoginTextureMetadataC2SPayload(skinHash, slim, capeHash);
-                                entry.connection.send(new LoginQueryResponseC2SPacket(MythicNetwork.QUERY_ID, textureMetadataPayload));
+                                entry.connection.send(MythicNetwork.createLoginC2SPacket(textureMetadataPayload));
                                 break;
                             case GET_SKIN:
                                 LoginTextureDataC2SPayload skinDataPayload = new LoginTextureDataC2SPayload(LoginTextureDataC2SPayload.TextureType.SKIN, 0, 0, null);
@@ -113,7 +108,7 @@ public class ClientTextureService {
                                     byte[] compressedSkin = compressBufferedImage(cachedSkinImage);
                                     skinDataPayload = new LoginTextureDataC2SPayload(LoginTextureDataC2SPayload.TextureType.SKIN, cachedSkinImage.getWidth(), cachedSkinImage.getHeight(), compressedSkin);
                                 }
-                                entry.connection.send(new LoginQueryResponseC2SPacket(MythicNetwork.QUERY_ID, skinDataPayload));
+                                entry.connection.send(MythicNetwork.createLoginC2SPacket(skinDataPayload));
                                 break;
                             case GET_CAPE:
                                 LoginTextureDataC2SPayload capeDataPayload = new LoginTextureDataC2SPayload(LoginTextureDataC2SPayload.TextureType.CAPE, 0, 0, null);
@@ -122,7 +117,7 @@ public class ClientTextureService {
                                     byte[] compressedCape = compressBufferedImage(cachedCapeImage);
                                     capeDataPayload = new LoginTextureDataC2SPayload(LoginTextureDataC2SPayload.TextureType.CAPE, cachedCapeImage.getWidth(), cachedCapeImage.getHeight(), compressedCape);
                                 }
-                                entry.connection.send(new LoginQueryResponseC2SPacket(MythicNetwork.QUERY_ID, capeDataPayload));
+                                entry.connection.send(MythicNetwork.createLoginC2SPacket(capeDataPayload));
                                 break;
                         }
                     } catch (IOException e) {
@@ -134,33 +129,12 @@ public class ClientTextureService {
                 }
             }
         };
-        Runnable cleaner = () -> {
-            while (!Thread.currentThread().isInterrupted()) {
-                try {
-                    try {
-                        lock.lock();
-                        Iterator<Map.Entry<String, ClientTextureRequestEntry>> iterator = textureRequests.entrySet().iterator();
-                        while (iterator.hasNext()) {
-                            Map.Entry<String, ClientTextureRequestEntry> entry = iterator.next();
-                            if (entry.getValue().requestedOn + 30000 <= System.currentTimeMillis()) {
-                                entry.getValue().future.complete(new PlayTextureResponseS2CPayload(entry.getKey(), null));
-                                iterator.remove();
-                            }
-                        }
-                    } finally {
-                        lock.unlock();
-                    }
-                    Thread.sleep(60000);
-                } catch (InterruptedException e) {
-                    break;
-                } catch (Exception e) {
-                    MythicWorldSecurity.LOGGER.error("Exception in client requests cleanup thread.", e);
-                }
-            }
-        };
-        Thread.startVirtualThread(receptionTask).setName("MSec Texture Receiver");
-        Thread.startVirtualThread(commandExecTask).setName("MSec Server Texture Command Executor");
-        Thread.startVirtualThread(cleaner).setName("MSec Zombie Requests Cleaner");
+        Thread receiverThread = new Thread(receptionTask, "MSec Texture Receiver");
+        receiverThread.setDaemon(true);
+        receiverThread.start();
+        Thread commonExecutor = new Thread(commandExecTask, "MSec Server Texture Command Executor");
+        commonExecutor.setDaemon(true);
+        commonExecutor.start();
     }
 
     private static BufferedImage fetchBufferedImageFromHttp(String url) throws IOException {
@@ -245,7 +219,7 @@ public class ClientTextureService {
             } else {
                 CompletableFuture<PlayTextureResponseS2CPayload> future = new CompletableFuture<>();
                 textureRequests.put(hash, new ClientTextureRequestEntry(future, System.currentTimeMillis()));
-                handler.getConnection().send(new CustomPayloadC2SPacket(new PlayTextureRequestC2SPayload(hash)));
+                handler.getConnection().send(MythicNetwork.createPlayC2SPacket(new PlayTextureRequestC2SPayload(hash)));
                 return future;
             }
         } finally {
@@ -258,11 +232,11 @@ public class ClientTextureService {
             localTextureCache = new LocalTextureCache(null, false, null);
             try {
                 MinecraftClient client = MinecraftClient.getInstance();
-                GameProfile profile = client.getGameProfile();
-                Property textureProperty = Iterables.getFirst(profile.getProperties().get("textures"), null);
+                PropertyMap properties = client.getSessionProperties();
+                Property textureProperty = Iterables.getFirst(properties.get("textures"), null);
                 if (textureProperty != null) {
-                    MinecraftTexturesPayload payload = PROFILE_GSON.fromJson(new String(Base64.getDecoder().decode(textureProperty.value()), StandardCharsets.UTF_8), MinecraftTexturesPayload.class);
-                    Map<MinecraftProfileTexture.Type, MinecraftProfileTexture> textures = payload.textures();
+                    MinecraftTexturesPayload payload = PROFILE_GSON.fromJson(new String(Base64.getDecoder().decode(textureProperty.getValue()), StandardCharsets.UTF_8), MinecraftTexturesPayload.class);
+                    Map<MinecraftProfileTexture.Type, MinecraftProfileTexture> textures = payload.getTextures();
                     MinecraftProfileTexture skinProfileTexture = textures.get(MinecraftProfileTexture.Type.SKIN);
                     boolean slim = false;
                     MinecraftProfileTexture capeProfileTexture = textures.get(MinecraftProfileTexture.Type.CAPE);
@@ -294,8 +268,7 @@ public class ClientTextureService {
         textureCommandQueue.add(new TextureCommandEntry(payload.command(), connection));
     }
 
-    private record ClientTextureRequestEntry(CompletableFuture<PlayTextureResponseS2CPayload> future,
-                                             long requestedOn) {
+    private record ClientTextureRequestEntry(CompletableFuture<PlayTextureResponseS2CPayload> future, long requestedOn) {
     }
 
     private record TextureCommandEntry(LoginTextureCommandS2CPayload.Command command, ClientConnection connection) {

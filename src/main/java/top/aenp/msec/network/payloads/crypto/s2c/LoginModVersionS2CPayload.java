@@ -1,19 +1,21 @@
 package top.aenp.msec.network.payloads.crypto.s2c;
 
 import net.minecraft.network.PacketByteBuf;
-import net.minecraft.network.codec.PacketCodec;
 import net.minecraft.util.Identifier;
 import top.aenp.msec.network.interfaces.MSecClientLoginNetworkHandler;
 import top.aenp.msec.network.interfaces.SignedPayload;
 import top.aenp.mwl.network.v2.interfaces.MythicClientLoginNetworkHandler;
+import top.aenp.mwl.network.v2.interfaces.PacketCodec;
 import top.aenp.mwl.network.v2.payloads.interfaces.MythicLoginS2CPayload;
 
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 
-public record LoginModVersionS2CPayload(String serverModVersion,
-                                        int serverProtocolVersion) implements MythicLoginS2CPayload, SignedPayload {
-    public static final Identifier ID = Identifier.of("msec", "mod_version_s2c");
+public record LoginModVersionS2CPayload(
+        String serverModVersion,
+        int serverProtocolVersion
+) implements MythicLoginS2CPayload, SignedPayload {
+    public static final Identifier ID = new Identifier("msec", "mod_version_s2c");
     public static final PacketCodec<PacketByteBuf, LoginModVersionS2CPayload> CODEC = new PacketCodec<>() {
         @Override
         public LoginModVersionS2CPayload decode(PacketByteBuf buf) {

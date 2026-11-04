@@ -1,10 +1,10 @@
 package top.aenp.msec.auth;
 
-import com.mojang.authlib.yggdrasil.ProfileResult;
-import net.minecraft.network.packet.s2c.common.CustomPayloadS2CPacket;
+import com.mojang.authlib.GameProfile;
 import net.minecraft.server.network.ServerPlayNetworkHandler;
 import top.aenp.msec.MythicWorldSecurity;
 import top.aenp.msec.network.payloads.auth.s2c.PlayProfileResponseS2CPayload;
+import top.aenp.mwl.network.v2.MythicNetwork;
 
 import java.util.UUID;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -18,8 +18,8 @@ public class ClientProfileQueryHandler {
             while (!Thread.currentThread().isInterrupted()) {
                 try {
                     ClientProfileQueryEntry queryEntry = queue.take();
-                    ProfileResult profileResult = ServerMSecMinecraftSessionService.INSTANCE.fetchProfile(queryEntry.uuid, false);
-                    queryEntry.handler.sendPacket(new CustomPayloadS2CPacket(new PlayProfileResponseS2CPayload(queryEntry.uuid, profileResult)));
+                    GameProfile gameProfile = ServerMSecMinecraftSessionService.INSTANCE.fillProfileProperties(new GameProfile(queryEntry.uuid, null), false);
+                    queryEntry.handler.sendPacket(MythicNetwork.createPlayS2CPacket(new PlayProfileResponseS2CPayload(queryEntry.uuid, gameProfile)));
                 } catch (InterruptedException e) {
                     break;
                 } catch (Exception e) {
@@ -27,7 +27,9 @@ public class ClientProfileQueryHandler {
                 }
             }
         };
-        Thread.startVirtualThread(handlingTask).setName("MSec Client Profile Query Handler");
+        Thread handlerThread = new Thread(handlingTask, "MSec Client Profile Query Handler");
+        handlerThread.setDaemon(true);
+        handlerThread.start();
     }
 
     public static void init() {

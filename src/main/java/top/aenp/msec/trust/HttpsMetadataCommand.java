@@ -80,56 +80,55 @@ public class HttpsMetadataCommand {
     }
 
     private static int executeExport(CommandContext<ServerCommandSource> context, boolean override, String description) {
-        Runnable exportMetadataTask = () -> {
-            try {
-                HashMap<String, HttpsMetadataEntry> metadataMap = new HashMap<>();
-                if (Files.exists(METADATA_FILE_PATH)) {
-                    if (!Files.isRegularFile(METADATA_FILE_PATH)) {
-                        context.getSource().sendError(Text.of("A directory has the same name as the metadata file, preventing operation."));
-                        return;
-                    }
-                    context.getSource().sendFeedback(() -> Text.of("An existing metadata file is found, appending."), false);
-                    try (InputStreamReader reader = new InputStreamReader(Files.newInputStream(METADATA_FILE_PATH))) {
-                        JsonElement jsonElement = JsonParser.parseReader(reader);
-                        DataResult<Map<String, HttpsMetadataEntry>> dataResult = HttpsMetadataEntry.METADATA_MAP_CODEC.parse(JsonOps.INSTANCE, jsonElement);
-                        Map<String, HttpsMetadataEntry> decodedMetadata = dataResult.getOrThrow(JsonParseException::new);
-                        metadataMap.putAll(decodedMetadata);
-                    } catch (JsonParseException e) {
-                        context.getSource().sendError(Text.of(String.format("The existing metadata file is malformed: %s", e.getMessage())));
-                        return;
-                    }
-                } else {
-                    context.getSource().sendFeedback(() -> Text.of("Creating mew metadata file."), false);
+        try {
+            HashMap<String, HttpsMetadataEntry> metadataMap = new HashMap<>();
+            if (Files.exists(METADATA_FILE_PATH)) {
+                if (!Files.isRegularFile(METADATA_FILE_PATH)) {
+                    context.getSource().sendError(Text.of("A directory has the same name as the metadata file, preventing operation."));
+                    return 1;
                 }
-                String fingerprint = MSecEd25519Identity.hashEd25519PublicKey(MSecEd25519Identity.getInstance().publicKey);
-                ZonedDateTime dateTime = ZonedDateTime.now();
-                Set<String> combinedAddresses = new HashSet<>();
-                combinedAddresses.addAll(ServerConfigManager.getConfig().mutableConfig().dnsHttpsConfig().applicableAddresses());
-                combinedAddresses.addAll(ServerConfigManager.getConfig().mutableConfig().directHttpsConfig().applicableAddresses());
-                for (String address : combinedAddresses) {
-                    if (metadataMap.containsKey(address) && !override) {
-                        context.getSource().sendError(Text.of("Existing metadata file contains metadata keys of this server. Use \"true\" argument to override."));
-                        return;
-                    }
-                    metadataMap.put(address, new HttpsMetadataEntry(fingerprint, Optional.ofNullable(description), Optional.of(dateTime)));
+                context.getSource().sendFeedback(() -> Text.of("An existing metadata file is found, appending."), false);
+                try (InputStreamReader reader = new InputStreamReader(Files.newInputStream(METADATA_FILE_PATH))) {
+                    JsonElement jsonElement = JsonParser.parseReader(reader);
+                    DataResult<Map<String, HttpsMetadataEntry>> dataResult = HttpsMetadataEntry.METADATA_MAP_CODEC.parse(JsonOps.INSTANCE, jsonElement);
+                    Map<String, HttpsMetadataEntry> decodedMetadata = dataResult.getOrThrow(false, message -> {
+                    });
+                    metadataMap.putAll(decodedMetadata);
+                } catch (Exception e) {
+                    context.getSource().sendError(Text.of(String.format("The existing metadata file is malformed: %s", e.getMessage())));
+                    return 1;
                 }
-                Files.deleteIfExists(TEMP_METADATA_FILE_PATH);
-                try (OutputStream outputStream = Files.newOutputStream(TEMP_METADATA_FILE_PATH)) {
-                    JsonElement jsonElement = HttpsMetadataEntry.METADATA_MAP_CODEC.encodeStart(JsonOps.INSTANCE, metadataMap).getOrThrow(IOException::new);
-                    outputStream.write(GSON.toJson(jsonElement).getBytes(StandardCharsets.UTF_8));
-                }
-                try {
-                    Files.move(TEMP_METADATA_FILE_PATH, METADATA_FILE_PATH, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
-                } catch (AtomicMoveNotSupportedException e) {
-                    Files.move(TEMP_METADATA_FILE_PATH, METADATA_FILE_PATH, StandardCopyOption.REPLACE_EXISTING);
-                }
-                context.getSource().sendFeedback(() -> Text.of("Metadata has been successfully written to msec_server_metadata.json."), false);
-                context.getSource().sendFeedback(() -> Text.of("To use Direct HTTPS mode, host this file at https://server-domain/.well-known/msec/msec_server_metadata.json"), false);
-            } catch (IOException e) {
-                context.getSource().sendError(Text.of(String.format("Failed to export server metadata: %s", e)));
+            } else {
+                context.getSource().sendFeedback(() -> Text.of("Creating mew metadata file."), false);
             }
-        };
-        Thread.startVirtualThread(exportMetadataTask).setName("MSec Server Metadata Exporter");
+            String fingerprint = MSecEd25519Identity.hashEd25519PublicKey(MSecEd25519Identity.getInstance().publicKey);
+            ZonedDateTime dateTime = ZonedDateTime.now();
+            Set<String> combinedAddresses = new HashSet<>();
+            combinedAddresses.addAll(ServerConfigManager.getConfig().mutableConfig().dnsHttpsConfig().applicableAddresses());
+            combinedAddresses.addAll(ServerConfigManager.getConfig().mutableConfig().directHttpsConfig().applicableAddresses());
+            for (String address : combinedAddresses) {
+                if (metadataMap.containsKey(address) && !override) {
+                    context.getSource().sendError(Text.of("Existing metadata file contains metadata keys of this server. Use \"true\" argument to override."));
+                    return 1;
+                }
+                metadataMap.put(address, new HttpsMetadataEntry(fingerprint, Optional.ofNullable(description), Optional.of(dateTime)));
+            }
+            Files.deleteIfExists(TEMP_METADATA_FILE_PATH);
+            try (OutputStream outputStream = Files.newOutputStream(TEMP_METADATA_FILE_PATH)) {
+                JsonElement jsonElement = HttpsMetadataEntry.METADATA_MAP_CODEC.encodeStart(JsonOps.INSTANCE, metadataMap).getOrThrow(false, message -> {
+                });
+                outputStream.write(GSON.toJson(jsonElement).getBytes(StandardCharsets.UTF_8));
+            }
+            try {
+                Files.move(TEMP_METADATA_FILE_PATH, METADATA_FILE_PATH, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+            } catch (AtomicMoveNotSupportedException e) {
+                Files.move(TEMP_METADATA_FILE_PATH, METADATA_FILE_PATH, StandardCopyOption.REPLACE_EXISTING);
+            }
+            context.getSource().sendFeedback(() -> Text.of("Metadata has been successfully written to msec_server_metadata.json."), false);
+            context.getSource().sendFeedback(() -> Text.of("To use Direct HTTPS mode, host this file at https://server-domain/.well-known/msec/msec_server_metadata.json"), false);
+        } catch (IOException e) {
+            context.getSource().sendError(Text.of(String.format("Failed to export server metadata: %s", e)));
+        }
         return 1;
     }
 
@@ -222,7 +221,9 @@ public class HttpsMetadataCommand {
                 }
             }
         };
-        Thread.startVirtualThread(testMetadataTask).setName("MSec Server Metadata Tester");
+        Thread testerThread = new Thread(testMetadataTask, "MSec Server Metadata Tester");
+        testerThread.setDaemon(true);
+        testerThread.start();
         return 1;
     }
 }

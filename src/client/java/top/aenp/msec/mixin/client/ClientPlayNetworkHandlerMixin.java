@@ -3,11 +3,14 @@ package top.aenp.msec.mixin.client;
 import com.mojang.authlib.minecraft.MinecraftSessionService;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ClientPlayNetworkHandler;
+import net.minecraft.client.toast.Toast;
+import net.minecraft.client.toast.ToastManager;
 import net.minecraft.network.ClientConnection;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import top.aenp.msec.auth.client.ClientMSecGameProfileRepository;
 import top.aenp.msec.auth.client.ClientMSecMinecraftSessionService;
@@ -20,15 +23,7 @@ import top.aenp.msec.network.payloads.texture.s2c.PlayTextureResponseS2CPayload;
 @Mixin(ClientPlayNetworkHandler.class)
 public abstract class ClientPlayNetworkHandlerMixin implements MSecClientPlayNetworkHandler {
     @Shadow
-    private boolean displayedUnsecureChatWarning;
-
-    @Shadow
     public abstract ClientConnection getConnection();
-
-    @Inject(method = "<init>", at = @At(value = "RETURN"))
-    private void init(CallbackInfo info) {
-        displayedUnsecureChatWarning = true;
-    }
 
     @Inject(method = "onGameJoin", at = @At(value = "RETURN"))
     private void onGameJoin(CallbackInfo info) {
@@ -38,6 +33,10 @@ public abstract class ClientPlayNetworkHandlerMixin implements MSecClientPlayNet
             msecSessionService.onPlayHandlerReady(getConnection());
         }
         ClientMSecGameProfileRepository.onPlayHandlerReady(getConnection());
+    }
+
+    @Redirect(method = "onServerMetadata", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/toast/ToastManager;add(Lnet/minecraft/client/toast/Toast;)V"))
+    private void addToast(ToastManager instance, Toast toast) {
     }
 
     @Override

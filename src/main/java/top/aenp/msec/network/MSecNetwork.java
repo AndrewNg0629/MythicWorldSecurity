@@ -90,8 +90,8 @@ public class MSecNetwork {
 
     public static void init() {
         if (!initialized) {
-            MythicNetwork.INSTANCE.CUSTOM_PAYLOAD_CODECS.put(PlayTextureRequestC2SPayload.ID.id(), PlayTextureRequestC2SPayload.CODEC);
-            MythicNetwork.INSTANCE.CUSTOM_PAYLOAD_CODECS.put(PlayTextureResponseS2CPayload.ID.id(), PlayTextureResponseS2CPayload.CODEC);
+            MythicNetwork.INSTANCE.PLAY_C2S_CODECS.put(PlayTextureRequestC2SPayload.ID, PlayTextureRequestC2SPayload.CODEC);
+            MythicNetwork.INSTANCE.PLAY_S2C_CODECS.put(PlayTextureResponseS2CPayload.ID, PlayTextureResponseS2CPayload.CODEC);
             MythicNetwork.INSTANCE.LOGIN_S2C_CODECS.put(LoginTextureCommandS2CPayload.ID, LoginTextureCommandS2CPayload.CODEC);
             MythicNetwork.INSTANCE.LOGIN_C2S_CODECS.put(LoginTextureDataC2SPayload.ID, LoginTextureDataC2SPayload.CODEC);
             MythicNetwork.INSTANCE.LOGIN_C2S_CODECS.put(LoginTextureMetadataC2SPayload.ID, LoginTextureMetadataC2SPayload.CODEC);
@@ -110,10 +110,10 @@ public class MSecNetwork {
             MythicNetwork.INSTANCE.LOGIN_S2C_CODECS.put(LoginContactEndpointS2CPayload.ID, LoginContactEndpointS2CPayload.CODEC);
             MythicNetwork.INSTANCE.LOGIN_C2S_CODECS.put(LoginContactFinishC2SPayload.ID, LoginContactFinishC2SPayload.CODEC);
             MythicNetwork.INSTANCE.LOGIN_S2C_CODECS.put(LoginAllowedSkinDomainsS2CPayload.ID, LoginAllowedSkinDomainsS2CPayload.CODEC);
-            MythicNetwork.INSTANCE.CUSTOM_PAYLOAD_CODECS.put(PlayProfileQueryC2SPayload.ID.id(), PlayProfileQueryC2SPayload.CODEC);
-            MythicNetwork.INSTANCE.CUSTOM_PAYLOAD_CODECS.put(PlayProfileResponseS2CPayload.ID.id(), PlayProfileResponseS2CPayload.CODEC);
-            MythicNetwork.INSTANCE.CUSTOM_PAYLOAD_CODECS.put(PlayProfileBatchRequestC2SPayload.ID.id(), PlayProfileBatchRequestC2SPayload.CODEC);
-            MythicNetwork.INSTANCE.CUSTOM_PAYLOAD_CODECS.put(PlayProfileBatchResponseS2CPayload.ID.id(), PlayProfileBatchResponseS2CPayload.CODEC);
+            MythicNetwork.INSTANCE.PLAY_C2S_CODECS.put(PlayProfileQueryC2SPayload.ID, PlayProfileQueryC2SPayload.CODEC);
+            MythicNetwork.INSTANCE.PLAY_S2C_CODECS.put(PlayProfileResponseS2CPayload.ID, PlayProfileResponseS2CPayload.CODEC);
+            MythicNetwork.INSTANCE.PLAY_C2S_CODECS.put(PlayProfileBatchRequestC2SPayload.ID, PlayProfileBatchRequestC2SPayload.CODEC);
+            MythicNetwork.INSTANCE.PLAY_S2C_CODECS.put(PlayProfileBatchResponseS2CPayload.ID, PlayProfileBatchResponseS2CPayload.CODEC);
             initialized = true;
         } else {
             throw new IllegalStateException("MSecNetwork has already been initialized!");

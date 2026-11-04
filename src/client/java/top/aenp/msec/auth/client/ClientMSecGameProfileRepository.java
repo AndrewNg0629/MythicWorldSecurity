@@ -1,15 +1,17 @@
 package top.aenp.msec.auth.client;
 
+import com.mojang.authlib.Agent;
+import com.mojang.authlib.GameProfile;
 import com.mojang.authlib.GameProfileRepository;
 import com.mojang.authlib.ProfileLookupCallback;
 import com.mojang.authlib.exceptions.AuthenticationException;
 import com.mojang.authlib.yggdrasil.ProfileNotFoundException;
 import net.minecraft.network.ClientConnection;
-import net.minecraft.network.packet.c2s.common.CustomPayloadC2SPacket;
 import top.aenp.msec.MythicWorldSecurity;
 import top.aenp.msec.auth.ServerMSecGameProfileRepository;
 import top.aenp.msec.network.payloads.auth.c2s.PlayProfileBatchRequestC2SPayload;
 import top.aenp.msec.network.payloads.auth.s2c.PlayProfileBatchResponseS2CPayload;
+import top.aenp.mwl.network.v2.MythicNetwork;
 
 import java.util.Iterator;
 import java.util.List;
@@ -31,14 +33,14 @@ public class ClientMSecGameProfileRepository implements GameProfileRepository {
     }
 
     @Override
-    public void findProfilesByNames(String[] names, ProfileLookupCallback callback) {
+    public void findProfilesByNames(String[] names, Agent agent, ProfileLookupCallback callback) {
         Set<String> nameSet = Set.copyOf(List.of(names));
         ClientConnection connection = clientConnection;
         if (connection != null) {
             CompletableFuture<PlayProfileBatchResponseS2CPayload> batchProfileFuture = BATCH_PROFILE_REQUESTS.computeIfAbsent(QUERY_ID.getAndIncrement(), queryId -> {
                 CompletableFuture<PlayProfileBatchResponseS2CPayload> future = new CompletableFuture<>();
                 PlayProfileBatchRequestC2SPayload payload = new PlayProfileBatchRequestC2SPayload(queryId, nameSet);
-                clientConnection.send(new CustomPayloadC2SPacket(payload));
+                clientConnection.send(MythicNetwork.createPlayC2SPacket(payload));
                 return future;
             });
             try {
@@ -50,20 +52,20 @@ public class ClientMSecGameProfileRepository implements GameProfileRepository {
                         callback.onProfileLookupSucceeded(queryResult.profile());
                     } else {
                         if (queryResult.isNotFound()) {
-                            callback.onProfileLookupFailed(entry.getKey(), new ProfileNotFoundException("Requested profile was not found."));
+                            callback.onProfileLookupFailed(new GameProfile(null, entry.getKey()), new ProfileNotFoundException("Requested profile was not found."));
                         } else {
-                            callback.onProfileLookupFailed(entry.getKey(), new AuthenticationException("Unknown exception."));
+                            callback.onProfileLookupFailed(new GameProfile(null, entry.getKey()), new AuthenticationException("Unknown exception."));
                         }
                     }
                 }
             } catch (Exception e) {
                 MythicWorldSecurity.LOGGER.error("Failed to fetch profile in batch from server.", e);
                 for (String name : nameSet) {
-                    callback.onProfileLookupFailed(name, new AuthenticationException(e));
+                    callback.onProfileLookupFailed(new GameProfile(null, name), new AuthenticationException(e));
                 }
             }
         } else {
-            vanillaGameProfileRepo.findProfilesByNames(names, callback);
+            vanillaGameProfileRepo.findProfilesByNames(names, agent, callback);
         }
     }
 

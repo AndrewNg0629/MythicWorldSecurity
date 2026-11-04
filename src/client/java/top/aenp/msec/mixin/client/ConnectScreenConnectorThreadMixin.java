@@ -11,7 +11,7 @@ import top.aenp.msec.network.client.MSecClientLoginHandshakeHandlerImpl;
 
 import java.util.Optional;
 
-@Mixin(targets = "net.minecraft.client.gui.screen.multiplayer.ConnectScreen$1")
+@Mixin(targets = "net.minecraft.client.gui.screen.ConnectScreen$1")
 public class ConnectScreenConnectorThreadMixin {
     @WrapOperation(method = "run", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/network/AllowedAddressResolver;resolve(Lnet/minecraft/client/network/ServerAddress;)Ljava/util/Optional;"))
     private Optional<Address> wrapResolve(AllowedAddressResolver instance, ServerAddress address, Operation<Optional<Address>> original) {

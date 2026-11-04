@@ -1,19 +1,20 @@
 package top.aenp.msec.auth.client;
 
+import com.mojang.authlib.GameProfile;
 import com.mojang.authlib.exceptions.AuthenticationException;
 import com.mojang.authlib.exceptions.AuthenticationUnavailableException;
 import com.mojang.authlib.minecraft.MinecraftSessionService;
-import com.mojang.authlib.yggdrasil.ProfileResult;
 import net.minecraft.network.ClientConnection;
-import net.minecraft.network.packet.c2s.common.CustomPayloadC2SPacket;
 import top.aenp.msec.MythicWorldSecurity;
 import top.aenp.msec.auth.AbstractMSecMinecraftSessionService;
 import top.aenp.msec.network.payloads.auth.c2s.PlayProfileQueryC2SPayload;
 import top.aenp.msec.network.payloads.auth.s2c.PlayProfileResponseS2CPayload;
+import top.aenp.mwl.network.v2.MythicNetwork;
 
 import java.net.InetAddress;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -29,33 +30,34 @@ public class ClientMSecMinecraftSessionService extends AbstractMSecMinecraftSess
     }
 
     @Override
-    public void joinServer(UUID profileId, String authenticationToken, String apiNonce) throws AuthenticationException {
-        vanillaSessionService.joinServer(profileId, authenticationToken, apiNonce);
+    public void joinServer(GameProfile profile, String authenticationToken, String apiNonce) throws AuthenticationException {
+        vanillaSessionService.joinServer(profile, authenticationToken, apiNonce);
     }
 
     @Override
-    public ProfileResult hasJoinedServer(String profileName, String serverId, InetAddress address) throws AuthenticationUnavailableException {
-        return vanillaSessionService.hasJoinedServer(profileName, serverId, address);
+    public GameProfile hasJoinedServer(GameProfile user, String serverId, InetAddress address) throws AuthenticationUnavailableException {
+        return vanillaSessionService.hasJoinedServer(user, serverId, address);
     }
 
     @Override
-    public ProfileResult fetchProfile(UUID profileId, boolean requireSecure) {
+    public GameProfile fillProfileProperties(GameProfile profile, boolean requireSecure) {
         ClientConnection connection = clientConnection;
         if (connection != null) {
-            CompletableFuture<PlayProfileResponseS2CPayload> profileFuture = profileRequests.computeIfAbsent(profileId, uuid -> {
+            CompletableFuture<PlayProfileResponseS2CPayload> profileFuture = profileRequests.computeIfAbsent(profile.getId(), uuid -> {
                 CompletableFuture<PlayProfileResponseS2CPayload> future = new CompletableFuture<>();
-                connection.send(new CustomPayloadC2SPacket(new PlayProfileQueryC2SPayload(profileId)));
+                connection.send(MythicNetwork.createPlayC2SPacket(new PlayProfileQueryC2SPayload(profile.getId())));
                 return future;
             });
             try {
                 PlayProfileResponseS2CPayload payload = profileFuture.get(30, TimeUnit.SECONDS);
-                return payload.profileResult();
+                GameProfile gameProfile = payload.gameProfile();
+                return Objects.requireNonNullElse(gameProfile, profile);
             } catch (Exception e) {
                 MythicWorldSecurity.LOGGER.error("Failed to fetch profile from server.", e);
-                return null;
+                return profile;
             }
         } else {
-            return vanillaSessionService.fetchProfile(profileId, requireSecure);
+            return vanillaSessionService.fillProfileProperties(profile, false);
         }
     }
 

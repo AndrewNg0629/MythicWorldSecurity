@@ -4,9 +4,9 @@ import com.mojang.authlib.exceptions.AuthenticationException;
 import com.mojang.authlib.minecraft.MinecraftSessionService;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ServerAddress;
+import net.minecraft.client.util.NetworkUtils;
 import net.minecraft.network.ClientConnection;
 import net.minecraft.network.PacketCallbacks;
-import net.minecraft.network.packet.c2s.login.LoginQueryResponseC2SPacket;
 import net.minecraft.text.Text;
 import org.apache.commons.lang3.Validate;
 import top.aenp.msec.MythicWorldSecurity;
@@ -50,7 +50,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
 
-import static top.aenp.msec.network.interfaces.MSecServerLoginHandshakeHandler.MSecHandshakeState;
+import static top.aenp.msec.network.MSecServerLoginHandshakeHandlerImpl.MSecHandshakeState;
 
 public class MSecClientLoginHandshakeHandlerImpl implements MSecClientLoginHandshakeHandler {
     public static final ThreadLocal<ServerAddress> SERVER_ADDRESS_THREAD_LOCAL = new ThreadLocal<>();
@@ -133,7 +133,7 @@ public class MSecClientLoginHandshakeHandlerImpl implements MSecClientLoginHands
                 clientConnection.disconnect(Text.of("Client error when handling server identity."));
             }
         };
-        Thread.startVirtualThread(identityHandlingTask).setName("MSec Server Identity Handler H");
+        NetworkUtils.EXECUTOR.execute(identityHandlingTask);
     }
 
     @Override
@@ -177,7 +177,7 @@ public class MSecClientLoginHandshakeHandlerImpl implements MSecClientLoginHands
                     encryptionCipher.init(Cipher.ENCRYPT_MODE, mSecAESKeySet.c2sKey, mSecAESKeySet.c2sIV);
                     LoginSignatureC2SPayload signatureC2SPayload = new LoginSignatureC2SPayload(signTranscript());
                     state = MSecHandshakeState.AUTHENTICATING;
-                    clientConnection.send(new LoginQueryResponseC2SPacket(MythicNetwork.QUERY_ID, signatureC2SPayload), PacketCallbacks.always(() -> clientConnection.setupEncryption(decryptionCipher, encryptionCipher)));
+                    clientConnection.send(MythicNetwork.createLoginC2SPacket(signatureC2SPayload), PacketCallbacks.always(() -> clientConnection.setupEncryption(decryptionCipher, encryptionCipher)));
                     state = MSecHandshakeState.SOURCE_DETERMINATION;
                 } catch (NoSuchPaddingException | InvalidAlgorithmParameterException e) {
                     clientConnection.disconnect(Text.of("Failed to setup encryption for you."));
@@ -212,7 +212,7 @@ public class MSecClientLoginHandshakeHandlerImpl implements MSecClientLoginHands
             MinecraftClient minecraftClient = MinecraftClient.getInstance();
             MinecraftSessionService sessionService = minecraftClient.getSessionService();
             try {
-                sessionService.joinServer(minecraftClient.getSession().getUuidOrNull(), minecraftClient.getSession().getAccessToken(), payload.apiNonce());
+                sessionService.joinServer(minecraftClient.getSession().getProfile(), minecraftClient.getSession().getAccessToken(), payload.apiNonce());
                 state = MSecHandshakeState.SUCCESS;
                 sendPayload(new LoginContactFinishC2SPayload());
             } catch (AuthenticationException e) {
@@ -220,7 +220,7 @@ public class MSecClientLoginHandshakeHandlerImpl implements MSecClientLoginHands
                 clientConnection.disconnect(Text.of("Exception joining server."));
             }
         };
-        Thread.startVirtualThread(contactApiTask).setName("Endpoint Contactor");
+        NetworkUtils.EXECUTOR.execute(contactApiTask);
     }
 
     @Override
@@ -241,7 +241,7 @@ public class MSecClientLoginHandshakeHandlerImpl implements MSecClientLoginHands
         if (payload instanceof SignedPayload signedPayload) {
             signedPayload.writeMessageAsBytes(byteArrayOutputStream);
         }
-        clientConnection.send(new LoginQueryResponseC2SPacket(MythicNetwork.QUERY_ID, payload));
+        clientConnection.send(MythicNetwork.createLoginC2SPacket(payload));
     }
 
     private byte[] signTranscript() {

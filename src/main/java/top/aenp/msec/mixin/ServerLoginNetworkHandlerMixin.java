@@ -3,7 +3,6 @@ package top.aenp.msec.mixin;
 import com.mojang.authlib.GameProfile;
 import net.minecraft.network.ClientConnection;
 import net.minecraft.network.packet.c2s.login.LoginHelloC2SPacket;
-import net.minecraft.network.packet.s2c.login.LoginQueryRequestS2CPacket;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerLoginNetworkHandler;
 import net.minecraft.text.Text;
@@ -14,6 +13,9 @@ import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+import top.aenp.msec.Utils;
+import top.aenp.msec.network.MSecNetwork;
 import top.aenp.msec.network.MSecServerLoginHandshakeHandlerImpl;
 import top.aenp.msec.network.ServerTextureService;
 import top.aenp.msec.network.interfaces.MSecServerLoginHandshakeHandler;
@@ -46,15 +48,11 @@ public abstract class ServerLoginNetworkHandlerMixin implements MSecServerLoginN
 //    private boolean testDone = false;
 //    @Unique
 //    private long ts = 0L;
-
-    @Shadow
-    abstract void startVerify(GameProfile profile);
-
     @Shadow
     public abstract void disconnect(Text reason);
 
     @Inject(method = "<init>", at = @At(value = "RETURN"))
-    private void init(MinecraftServer server, ClientConnection connection, boolean transferred, CallbackInfo info) {
+    private void init(MinecraftServer server, ClientConnection connection, CallbackInfo info) {
         mSecServerLoginHandshakeHandler = new MSecServerLoginHandshakeHandlerImpl(connection, (ServerLoginNetworkHandler) (Object) this);
     }
 
@@ -75,7 +73,16 @@ public abstract class ServerLoginNetworkHandlerMixin implements MSecServerLoginN
                 disconnect(Text.of("Client trust operation timed out."));
             }
             if ((trustTimeOut - trustElapsedTicks) % 20 == 0) {
-                connection.send(new LoginQueryRequestS2CPacket(MythicNetwork.QUERY_ID, new LoginHeartbeatS2CPayload((trustTimeOut - trustElapsedTicks) / 20)));
+                connection.send(MythicNetwork.createLoginS2CPacket(new LoginHeartbeatS2CPayload((trustTimeOut - trustElapsedTicks) / 20)));
+            }
+        }
+    }
+
+    @Inject(method = "isValidName", at = @At(value = "RETURN"), cancellable = true)
+    private static void isValidName(String name, CallbackInfoReturnable<Boolean> info) {
+        if (!info.getReturnValue() && name != null) {
+            if (!name.isBlank()) {
+                info.setReturnValue(MSecNetwork.VALID_PLAYERNAME_PATTERN.matcher(name).matches());
             }
         }
     }
@@ -124,9 +131,11 @@ public abstract class ServerLoginNetworkHandlerMixin implements MSecServerLoginN
         return mSecServerLoginHandshakeHandler;
     }
 
+    @SuppressWarnings("DataFlowIssue")
     @Override
     public void mythicworldsecurity$startVerify(GameProfile profile) {
-        startVerify(profile);
+        Utils.ServerLoginNetworkHandler$profile.setFieldValue((ServerLoginNetworkHandler) (Object) this, profile);
+        Utils.setLoginHandlerState((ServerLoginNetworkHandler) (Object) this, 4);
     }
 
     @Override

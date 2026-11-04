@@ -13,6 +13,7 @@ import com.mojang.serialization.JsonOps;
 import top.aenp.msec.MythicWorldSecurity;
 import top.aenp.msec.auth.AuthSourceSuffixInfo;
 import top.aenp.msec.auth.YggdrasilApiMetadata;
+import top.aenp.msec.config.ServerConfig.BootstrapConfig.YggdrasilAuthSourceUnit;
 import top.aenp.msec.network.MSecNetwork;
 
 import java.io.FileWriter;
@@ -20,8 +21,6 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.file.*;
 import java.util.*;
-
-import static top.aenp.msec.config.ServerConfig.BootstrapConfig.YggdrasilAuthSourceUnit;
 
 public class ServerConfigManager {
     public static final int CONFIG_VERSION = 0;
@@ -106,7 +105,7 @@ public class ServerConfigManager {
         if (Files.notExists(path)) {
             Files.createFile(path);
             try (FileWriter writer = new FileWriter(path.toFile())) {
-                JsonElement jsonElement = ServerConfig.CODEC.encodeStart(JsonOps.INSTANCE, ServerConfig.DEFAULT_INSTANCE).getOrThrow();
+                JsonElement jsonElement = ServerConfig.CODEC.encodeStart(JsonOps.INSTANCE, ServerConfig.DEFAULT_INSTANCE).getOrThrow(false, message -> {});
                 writer.write(GSON.toJson(jsonElement));
                 writer.flush();
             }
@@ -135,7 +134,7 @@ public class ServerConfigManager {
     @SuppressWarnings({"unchecked", "BusyWait"})
     public static void init() {
         if (!initialized) {
-            readConfigFromFile().ifSuccess(
+            readConfigFromFile().get().ifLeft(
                     config -> {
                         String suffixExemptConfigName = config.bootstrapConfig().commonSuffixConfig().suffixExemptedSource();
                         boolean suffixExemptNameValid = suffixExemptConfigName.isEmpty() || "mojang".equalsIgnoreCase(suffixExemptConfigName) || "offline".equalsIgnoreCase(suffixExemptConfigName);
@@ -187,7 +186,7 @@ public class ServerConfigManager {
                         instance.initialConfigSucceeded = true;
                         MythicWorldSecurity.LOGGER.info("Successfully parsed initial MSec config.");
                     }
-            ).ifError(error -> MythicWorldSecurity.LOGGER.error("Failed to initialize MSec config. See below for error message, correct your config, and restart minecraft.\n{}", error.message()));
+            ).ifRight(error -> MythicWorldSecurity.LOGGER.error("Failed to initialize MSec config. See below for error message, correct your config, and restart minecraft.\n{}", error.message()));
             try {
                 ensureFile(DEFAULT_CONFIG_FILE_PATH);
             } catch (IOException e) {
@@ -223,7 +222,9 @@ public class ServerConfigManager {
                     }
                     MythicWorldSecurity.LOGGER.info("MSec config file listener done.");
                 };
-                Thread.startVirtualThread(watchAndUpdateTask).setName("MSec Config File Listener");
+                Thread listenerThread = new Thread(watchAndUpdateTask, "MSec Config File Listener");
+                listenerThread.setDaemon(true);
+                listenerThread.start();
                 MythicWorldSecurity.LOGGER.info("Spun up MSec config file listener.");
             }
             initialized = true;
@@ -231,7 +232,7 @@ public class ServerConfigManager {
     }
 
     public void updateConfigFromFile() {
-        readConfigFromFile().ifSuccess(
+        readConfigFromFile().get().ifLeft(
                 result -> {
                     if (!Objects.equals(result.bootstrapConfig(), bootstrapConfig)) {
                         MythicWorldSecurity.LOGGER.warn("You edited bootstrap config of MSec, which can't be reloaded on-the-fly. Restart minecraft to change them.");
@@ -243,7 +244,7 @@ public class ServerConfigManager {
                         combineConfig();
                         MythicWorldSecurity.LOGGER.info("Your MSec mutable config has been successfully updated.");
                     }
-                }).ifError(error -> MythicWorldSecurity.LOGGER.error("Failed to parse MSec config, config was not updated. See below for error message and correct your config.\n{}", error.message()));
+                }).ifRight(error -> MythicWorldSecurity.LOGGER.error("Failed to parse MSec config, config was not updated. See below for error message and correct your config.\n{}", error.message()));
     }
 
     private void combineConfig() {

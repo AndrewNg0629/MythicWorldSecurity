@@ -1,17 +1,15 @@
 package top.aenp.msec.network.payloads.auth.c2s;
 
 import net.minecraft.network.PacketByteBuf;
-import net.minecraft.network.codec.PacketCodec;
-import net.minecraft.network.packet.CustomPayload;
 import net.minecraft.util.Identifier;
 import top.aenp.msec.network.interfaces.MSecServerPlayNetworkHandler;
 import top.aenp.mwl.network.v2.interfaces.MythicServerPlayNetworkHandler;
+import top.aenp.mwl.network.v2.interfaces.PacketCodec;
 import top.aenp.mwl.network.v2.payloads.interfaces.MythicPlayC2SPayload;
-
 import java.util.UUID;
 
 public record PlayProfileQueryC2SPayload(UUID uuid) implements MythicPlayC2SPayload {
-    public static final CustomPayload.Id<PlayProfileQueryC2SPayload> ID = new Id<>(Identifier.of("msec", "play_profile_query_c2s"));
+    public static final Identifier ID = new Identifier("msec", "play_profile_query_c2s");
     public static final PacketCodec<PacketByteBuf, PlayProfileQueryC2SPayload> CODEC = new PacketCodec<>() {
         @Override
         public PlayProfileQueryC2SPayload decode(PacketByteBuf buf) {
@@ -31,7 +29,7 @@ public record PlayProfileQueryC2SPayload(UUID uuid) implements MythicPlayC2SPayl
     }
 
     @Override
-    public Id<? extends CustomPayload> getId() {
+    public Identifier mythicId() {
         return ID;
     }
 }
