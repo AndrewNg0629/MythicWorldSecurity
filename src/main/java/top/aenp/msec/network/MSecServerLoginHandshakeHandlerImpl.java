@@ -91,6 +91,10 @@ public class MSecServerLoginHandshakeHandlerImpl implements MSecServerLoginHands
             serverLoginNetworkHandler.disconnect(Text.of("Your player name contains defined source suffix!"));
             return;
         }
+        if (ServerConfigManager.getConfig().bootstrapConfig().offlineAuthSourceConfig().enabled() && ServerConfigManager.getInstance().getOfflineSuffixInfo().isSuffixed(profileName)) {
+            serverLoginNetworkHandler.disconnect(Text.of("Your player name contains defined source suffix!"));
+            return;
+        }
         for (AuthSourceSuffixInfo info : ServerConfigManager.getInstance().getYggdrasilSuffixInfoMap().values()) {
             if (info.isSuffixed(profileName)) {
                 serverLoginNetworkHandler.disconnect(Text.of("Your player name contains defined source suffix!"));

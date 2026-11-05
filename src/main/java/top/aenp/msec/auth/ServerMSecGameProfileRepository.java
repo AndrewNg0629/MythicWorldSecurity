@@ -14,6 +14,9 @@ import com.mojang.util.UUIDTypeAdapter;
 import top.aenp.msec.Utils;
 import top.aenp.msec.config.ServerConfigManager;
 import top.aenp.msec.network.MSecNetwork;
+import top.aenp.msec.offline.OfflinePlayerDB;
+import top.aenp.msec.offline.OfflinePlayerDataEntry;
+import top.aenp.msec.offline.OfflineUtils;
 
 import java.io.IOException;
 import java.net.URI;
@@ -28,13 +31,13 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 public class ServerMSecGameProfileRepository implements GameProfileRepository {
     public static final ServerMSecGameProfileRepository INSTANCE = new ServerMSecGameProfileRepository();
     private static final int CACHE_EXPIRE_TIME = 3600;
-    private final HashMap<String, ProfileCacheEntry> profileByNameCache = new HashMap<>();
-    private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
     private static final Gson PROFILE_GSON = new GsonBuilder()
             .registerTypeAdapter(GameProfile.class, new GameProfile.Serializer())
             .registerTypeAdapter(UUID.class, new UUIDTypeAdapter())
             .registerTypeAdapter(PropertyMap.class, new PropertyMap.Serializer())
             .create();
+    private final HashMap<String, ProfileCacheEntry> profileByNameCache = new HashMap<>();
+    private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
 
     private ServerMSecGameProfileRepository() {
     }
@@ -75,10 +78,14 @@ public class ServerMSecGameProfileRepository implements GameProfileRepository {
                 if (!mutableNames.isEmpty()) {
                     Map<String, Map<String, List<String>>> requestNamesBySourceMap = sortAndStripNamesBySource(mutableNames);
                     Map<String, List<String>> mojangRequests = requestNamesBySourceMap.remove("mojang");
-                    Map<String, List<String>> offlineRequests = requestNamesBySourceMap.remove("offline"); //TODO Offline.
+                    Map<String, List<String>> offlineRequests = requestNamesBySourceMap.remove("offline");
                     if (mojangRequests != null) {
                         Map<String, ProfileQueryResultEntry> mojangResult = pageAndLookupOnlineFromSource(mojangRequests, "mojang", 2);
                         resultMap.putAll(mojangResult);
+                    }
+                    if (offlineRequests != null) {
+                        Map<String, ProfileQueryResultEntry> offlineResult = searchProfileOffline(offlineRequests);
+                        resultMap.putAll(offlineResult);
                     }
                     for (Map.Entry<String, Map<String, List<String>>> entry : requestNamesBySourceMap.entrySet()) {
                         String sourceName = entry.getKey();
@@ -96,7 +103,8 @@ public class ServerMSecGameProfileRepository implements GameProfileRepository {
 
     private Map<String, Map<String, List<String>>> sortAndStripNamesBySource(Set<String> parameterNames) {
         Map<String, Map<String, List<String>>> resultMap = new HashMap<>();
-        nameLoop: for (String parameterName : parameterNames) {
+        nameLoop:
+        for (String parameterName : parameterNames) {
             for (String suffix : ServerConfigManager.getInstance().getMojangSuffixInfo().allPossibleSuffixes()) {
                 if (parameterName.toLowerCase(Locale.ROOT).endsWith(suffix.toLowerCase(Locale.ROOT))) {
                     Map<String, List<String>> parameterNameMap = resultMap.computeIfAbsent("mojang", name -> new HashMap<>());
@@ -106,7 +114,15 @@ public class ServerMSecGameProfileRepository implements GameProfileRepository {
                     continue nameLoop;
                 }
             }
-            //TODO Offline.
+            for (String suffix : ServerConfigManager.getInstance().getOfflineSuffixInfo().allPossibleSuffixes()) {
+                if (parameterName.toLowerCase(Locale.ROOT).endsWith(suffix.toLowerCase(Locale.ROOT))) {
+                    Map<String, List<String>> parameterNameMap = resultMap.computeIfAbsent("offline", name -> new HashMap<>());
+                    String strippedName = parameterName.substring(0, parameterName.length() - suffix.length());
+                    List<String> targetParameterNames = parameterNameMap.computeIfAbsent(strippedName, name -> new LinkedList<>());
+                    targetParameterNames.add(parameterName);
+                    continue nameLoop;
+                }
+            }
             for (Map.Entry<YggdrasilApiMetadata, AuthSourceSuffixInfo> suffixInfoEntry : ServerConfigManager.getInstance().getYggdrasilSuffixInfoMap().entrySet()) {
                 for (String suffix : suffixInfoEntry.getValue().allPossibleSuffixes()) {
                     if (parameterName.toLowerCase(Locale.ROOT).endsWith(suffix.toLowerCase(Locale.ROOT))) {
@@ -142,6 +158,37 @@ public class ServerMSecGameProfileRepository implements GameProfileRepository {
                     resultMap.put(parameterName, new ProfileQueryResultEntry(cacheEntry.profile, false));
                 }
             }
+        }
+        return resultMap;
+    }
+
+    private Map<String, ProfileQueryResultEntry> searchProfileOffline(Map<String, List<String>> names) {
+        HashMap<String, ProfileQueryResultEntry> resultMap = new HashMap<>();
+        AuthSourceSuffixInfo suffixInfo = null;
+        if (!ServerConfigManager.getInstance().getSuffixExemptedSourceName().equalsIgnoreCase("offline")) {
+            suffixInfo = ServerConfigManager.getInstance().getOfflineSuffixInfo();
+        }
+        OfflinePlayerDB database = OfflinePlayerDB.getInstance();
+        try {
+            database.lock.readLock().lock();
+            for (Map.Entry<String, List<String>> entry : names.entrySet()) {
+                OfflinePlayerDataEntry dataEntry = database.inMemoryDB.get(entry.getKey().toLowerCase(Locale.ROOT));
+                GameProfile gameProfile = null;
+                if (dataEntry != null) {
+                    String playerName = dataEntry.playerName();
+                    UUID uuid = dataEntry.uuid();
+                    if (suffixInfo != null) {
+                        playerName = playerName + suffixInfo.primarySuffix();
+                    }
+                    uuid = UUIDBySourceRepository.getInstance().mapUUID("offline", uuid);
+                    gameProfile = OfflineUtils.constructOfflineProfile(playerName, uuid, dataEntry.skinHash(), dataEntry.skinModelType(), dataEntry.capeHash());
+                }
+                for (String parameterName : entry.getValue()) {
+                    resultMap.put(parameterName, new ProfileQueryResultEntry(gameProfile, gameProfile == null));
+                }
+            }
+        } finally {
+            database.lock.readLock().unlock();
         }
         return resultMap;
     }

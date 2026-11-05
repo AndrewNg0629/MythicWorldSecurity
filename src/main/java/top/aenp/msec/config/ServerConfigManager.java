@@ -43,6 +43,7 @@ public class ServerConfigManager {
     private final ImmutableMap<YggdrasilApiMetadata, AuthSourceSuffixInfo> yggdrasilSuffixInfoMap;
     private final ImmutableBiMap<YggdrasilApiMetadata, String> yggdrasilConfigNameMap;
     private final AuthSourceSuffixInfo mojangSuffixInfo;
+    private final AuthSourceSuffixInfo offlineSuffixInfo;
     private final String suffixExemptedSourceName;
     private volatile ServerConfig configFromFile;
     private volatile ServerConfig combinedConfig;
@@ -81,14 +82,23 @@ public class ServerConfigManager {
         }
         yggdrasilConfigNameMap = configNameMapBuilder.build();
 
-        HashSet<String> allPossibleSuffixes = new HashSet<>();
+        HashSet<String> allPossibleMojangSuffixes = new HashSet<>();
         for (char separator : AuthSourceSuffixInfo.SUFFIX_SEPARATORS) {
-            allPossibleSuffixes.add(separator + initialConfig.bootstrapConfig().mojangAuthSourceConfig().suffix());
+            allPossibleMojangSuffixes.add(separator + initialConfig.bootstrapConfig().mojangAuthSourceConfig().suffix());
             for (String suffix : initialConfig.bootstrapConfig().mojangAuthSourceConfig().formerSuffixes()) {
-                allPossibleSuffixes.add(separator + suffix);
+                allPossibleMojangSuffixes.add(separator + suffix);
             }
         }
-        mojangSuffixInfo = new AuthSourceSuffixInfo(initialConfig.bootstrapConfig().commonSuffixConfig().suffixSeparatorChar() + initialConfig.bootstrapConfig().mojangAuthSourceConfig().suffix(), allPossibleSuffixes);
+        mojangSuffixInfo = new AuthSourceSuffixInfo(initialConfig.bootstrapConfig().commonSuffixConfig().suffixSeparatorChar() + initialConfig.bootstrapConfig().mojangAuthSourceConfig().suffix(), allPossibleMojangSuffixes);
+
+        HashSet<String> allPossibleOfflineSuffixes = new HashSet<>();
+        for (char separator : AuthSourceSuffixInfo.SUFFIX_SEPARATORS) {
+            allPossibleOfflineSuffixes.add(separator + initialConfig.bootstrapConfig().offlineAuthSourceConfig().suffix());
+            for (String suffix : initialConfig.bootstrapConfig().offlineAuthSourceConfig().formerSuffixes()) {
+                allPossibleOfflineSuffixes.add(separator + suffix);
+            }
+        }
+        offlineSuffixInfo = new AuthSourceSuffixInfo(initialConfig.bootstrapConfig().commonSuffixConfig().suffixSeparatorChar() + initialConfig.bootstrapConfig().offlineAuthSourceConfig().suffix(), allPossibleOfflineSuffixes);
 
         combineConfig();
     }
@@ -275,6 +285,10 @@ public class ServerConfigManager {
 
     public AuthSourceSuffixInfo getMojangSuffixInfo() {
         return mojangSuffixInfo;
+    }
+
+    public AuthSourceSuffixInfo getOfflineSuffixInfo() {
+        return offlineSuffixInfo;
     }
 
     public String getSuffixExemptedSourceName() {

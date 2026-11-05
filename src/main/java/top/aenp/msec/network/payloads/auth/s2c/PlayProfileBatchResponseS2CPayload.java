@@ -15,7 +15,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
-public record PlayProfileBatchResponseS2CPayload(int queryId, Map<String, ServerMSecGameProfileRepository.ProfileQueryResultEntry> queryResult) implements MythicPlayS2CPayload {
+public record PlayProfileBatchResponseS2CPayload(int queryId,
+                                                 Map<String, ServerMSecGameProfileRepository.ProfileQueryResultEntry> queryResult) implements MythicPlayS2CPayload {
     public static final Id<PlayProfileBatchResponseS2CPayload> ID = new Id<>(Identifier.of("msec", "play_profile_lookup_callback_s2c"));
     public static final PacketCodec<PacketByteBuf, PlayProfileBatchResponseS2CPayload> CODEC = new PacketCodec<>() {
         @Override

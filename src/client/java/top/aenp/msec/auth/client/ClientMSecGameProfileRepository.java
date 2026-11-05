@@ -22,12 +22,33 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public class ClientMSecGameProfileRepository implements GameProfileRepository {
     private static final ConcurrentHashMap<Integer, CompletableFuture<PlayProfileBatchResponseS2CPayload>> BATCH_PROFILE_REQUESTS = new ConcurrentHashMap<>();
-    private static volatile ClientConnection clientConnection = null;
     private static final AtomicInteger QUERY_ID = new AtomicInteger(0);
+    private static volatile ClientConnection clientConnection = null;
     private final GameProfileRepository vanillaGameProfileRepo;
 
     public ClientMSecGameProfileRepository(GameProfileRepository vanillaGameProfileRepo) {
         this.vanillaGameProfileRepo = vanillaGameProfileRepo;
+    }
+
+    public static void onProfileResponse(PlayProfileBatchResponseS2CPayload payload) {
+        CompletableFuture<PlayProfileBatchResponseS2CPayload> profileFuture = BATCH_PROFILE_REQUESTS.remove(payload.queryId());
+        if (profileFuture != null) {
+            profileFuture.complete(payload);
+        }
+    }
+
+    public static void onPlayHandlerReady(ClientConnection connection) {
+        clientConnection = connection;
+    }
+
+    public static void onDisconnected() {
+        clientConnection = null;
+        Iterator<Map.Entry<Integer, CompletableFuture<PlayProfileBatchResponseS2CPayload>>> iterator = BATCH_PROFILE_REQUESTS.entrySet().iterator();
+        while (iterator.hasNext()) {
+            Map.Entry<Integer, CompletableFuture<PlayProfileBatchResponseS2CPayload>> entry = iterator.next();
+            entry.getValue().complete(new PlayProfileBatchResponseS2CPayload(entry.getKey(), Map.of()));
+            iterator.remove();
+        }
     }
 
     @Override
@@ -64,27 +85,6 @@ public class ClientMSecGameProfileRepository implements GameProfileRepository {
             }
         } else {
             vanillaGameProfileRepo.findProfilesByNames(names, callback);
-        }
-    }
-
-    public static void onProfileResponse(PlayProfileBatchResponseS2CPayload payload) {
-        CompletableFuture<PlayProfileBatchResponseS2CPayload> profileFuture = BATCH_PROFILE_REQUESTS.remove(payload.queryId());
-        if (profileFuture != null) {
-            profileFuture.complete(payload);
-        }
-    }
-
-    public static void onPlayHandlerReady(ClientConnection connection) {
-        clientConnection = connection;
-    }
-
-    public static void onDisconnected() {
-        clientConnection = null;
-        Iterator<Map.Entry<Integer, CompletableFuture<PlayProfileBatchResponseS2CPayload>>> iterator = BATCH_PROFILE_REQUESTS.entrySet().iterator();
-        while (iterator.hasNext()) {
-            Map.Entry<Integer, CompletableFuture<PlayProfileBatchResponseS2CPayload>> entry = iterator.next();
-            entry.getValue().complete(new PlayProfileBatchResponseS2CPayload(entry.getKey(), Map.of()));
-            iterator.remove();
         }
     }
 }

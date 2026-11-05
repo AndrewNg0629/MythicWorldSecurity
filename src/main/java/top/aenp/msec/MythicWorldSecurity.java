@@ -11,6 +11,7 @@ import top.aenp.msec.auth.UUIDBySourceRepository;
 import top.aenp.msec.config.ServerConfigManager;
 import top.aenp.msec.network.MSecNetwork;
 import top.aenp.msec.network.ServerTextureService;
+import top.aenp.msec.offline.OfflinePlayerDB;
 import top.aenp.msec.trust.HttpsMetadataCommand;
 import top.aenp.msec.trust.MSecEd25519Identity;
 import top.aenp.mwl.misc.EnvironmentDetector;
@@ -18,7 +19,7 @@ import top.aenp.mwl.misc.EnvironmentDetector;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.*;
+import java.util.Arrays;
 
 public class MythicWorldSecurity implements ModInitializer {
     public static final Logger LOGGER = LoggerFactory.getLogger("MythicWorldSecurity");
@@ -57,6 +58,7 @@ public class MythicWorldSecurity implements ModInitializer {
             UUIDBySourceRepository.init();
             ClientProfileQueryHandler.init();
             ClientProfileBatchRequestHandler.init();
+            OfflinePlayerDB.init();
         }
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
             if (!EnvironmentDetector.isPhyClient) {

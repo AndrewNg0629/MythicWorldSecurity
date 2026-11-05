@@ -31,10 +31,6 @@ public class ClientProfileBatchRequestHandler {
         Thread.startVirtualThread(handlingTask).setName("MSec Client Profile BATCH Request Handler");
     }
 
-    public void onClientBatchRequest(ServerPlayNetworkHandler handler, int queryId, Set<String> names) {
-        queue.add(new ProfileBatchRequestEntry(handler, queryId, names));
-    }
-
     public static void init() {
         if (instance == null) {
             instance = new ClientProfileBatchRequestHandler();
@@ -49,6 +45,10 @@ public class ClientProfileBatchRequestHandler {
         } else {
             throw new IllegalStateException("Client profile batch request handler hasn't been initialized!");
         }
+    }
+
+    public void onClientBatchRequest(ServerPlayNetworkHandler handler, int queryId, Set<String> names) {
+        queue.add(new ProfileBatchRequestEntry(handler, queryId, names));
     }
 
     public record ProfileBatchRequestEntry(ServerPlayNetworkHandler handler, int queryId, Set<String> names) {

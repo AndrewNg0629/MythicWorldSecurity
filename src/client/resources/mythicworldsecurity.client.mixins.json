@@ -4,13 +4,13 @@
   "package": "top.aenp.msec.mixin.client",
   "compatibilityLevel": "JAVA_21",
   "client": [
+    "ClientConnectionMixin",
     "ClientLoginNetworkHandlerMixin",
     "ClientPlayNetworkHandlerMixin",
+    "ClientYggdrasilAuthenticationServiceMixin",
     "ConnectScreenConnectorThreadMixin",
     "PlayerSkinProviderFileCacheMixin",
-    "PlayerSkinTextureMixin",
-    "ClientYggdrasilAuthenticationServiceMixin",
-    "ClientConnectionMixin"
+    "PlayerSkinTextureMixin"
   ],
   "injectors": {
     "defaultRequire": 1

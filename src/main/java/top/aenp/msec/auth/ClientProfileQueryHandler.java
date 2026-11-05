@@ -10,8 +10,8 @@ import java.util.UUID;
 import java.util.concurrent.LinkedBlockingQueue;
 
 public class ClientProfileQueryHandler {
-    private final LinkedBlockingQueue<ClientProfileQueryEntry> queue = new LinkedBlockingQueue<>();
     private static ClientProfileQueryHandler instance = null;
+    private final LinkedBlockingQueue<ClientProfileQueryEntry> queue = new LinkedBlockingQueue<>();
 
     private ClientProfileQueryHandler() {
         Runnable handlingTask = () -> {

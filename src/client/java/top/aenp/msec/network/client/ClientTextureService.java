@@ -35,7 +35,10 @@ import java.net.URISyntaxException;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
-import java.util.*;
+import java.util.Base64;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.LinkedBlockingDeque;
@@ -214,7 +217,7 @@ public class ClientTextureService {
         try {
             lock.lock();
             CompletableFuture<PlayTextureResponseS2CPayload> existingFuture = textureRequests.get(hash);
-            if (existingFuture!= null) {
+            if (existingFuture != null) {
                 return existingFuture;
             } else {
                 CompletableFuture<PlayTextureResponseS2CPayload> future = new CompletableFuture<>();

@@ -21,25 +21,10 @@ import java.net.UnknownHostException;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
-import java.time.ZonedDateTime;
-import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeParseException;
 import java.util.*;
 import java.util.function.Function;
 
 public class TrustUtils {
-    public static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm:ss O");
-    public static final Codec<ZonedDateTime> DATE_TIME_CODEC = Codec.STRING.comapFlatMap(
-            string -> {
-                try {
-                    ZonedDateTime zonedDateTime = ZonedDateTime.parse(string, DATE_TIME_FORMATTER);
-                    return DataResult.success(zonedDateTime);
-                } catch (DateTimeParseException e) {
-                    return DataResult.error(e::getMessage);
-                }
-            },
-            zonedDateTime -> zonedDateTime.format(DATE_TIME_FORMATTER)
-    );
     public static final Function<String, DataResult<String>> HOST_STRING_NORMALIZER;
     public static final Codec<String> VALIDATED_ADDR_STRING_CODEC;
     public static final String HTTPS_META_PATH = "/.well-known/msec/msec_server_metadata.json";

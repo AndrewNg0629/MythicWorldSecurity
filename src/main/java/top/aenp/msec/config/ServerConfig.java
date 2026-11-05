@@ -22,6 +22,7 @@ public record ServerConfig(BootstrapConfig bootstrapConfig, MutableConfig mutabl
                     false,
                     new BootstrapConfig.CommonSuffixConfig('.', "mojang"),
                     new BootstrapConfig.MojangAuthSourceConfig(true, "mojang", Set.of()),
+                    new BootstrapConfig.OfflineAuthSourceConfig(false, "offline", Set.of()),
                     false,
                     Set.of(),
                     List.of()
@@ -36,6 +37,7 @@ public record ServerConfig(BootstrapConfig bootstrapConfig, MutableConfig mutabl
     public record BootstrapConfig(boolean modEnabled,
                                   CommonSuffixConfig commonSuffixConfig,
                                   MojangAuthSourceConfig mojangAuthSourceConfig,
+                                  OfflineAuthSourceConfig offlineAuthSourceConfig,
                                   boolean yggdrasilSourcesEnabled,
                                   Set<YggdrasilAuthSourceUnit> yggdrasilAuthSourceUnits,
                                   List<String> unknownUUIDMatchSequence
@@ -45,6 +47,7 @@ public record ServerConfig(BootstrapConfig bootstrapConfig, MutableConfig mutabl
                         Codec.BOOL.fieldOf("mod_enabled").forGetter(BootstrapConfig::modEnabled),
                         CommonSuffixConfig.CODEC.fieldOf("common_suffix_config").forGetter(BootstrapConfig::commonSuffixConfig),
                         MojangAuthSourceConfig.CODEC.fieldOf("mojang_auth_source_config").forGetter(BootstrapConfig::mojangAuthSourceConfig),
+                        OfflineAuthSourceConfig.CODEC.fieldOf("offline_auth_source_config").forGetter(BootstrapConfig::offlineAuthSourceConfig),
                         Codec.BOOL.fieldOf("yggdrasil_sources_enabled").forGetter(BootstrapConfig::yggdrasilSourcesEnabled),
                         YggdrasilAuthSourceUnit.CODEC.listOf().xmap(Set::copyOf, List::copyOf).fieldOf("yggdrasil_auth_sources").forGetter(BootstrapConfig::yggdrasilAuthSourceUnits),
                         Codec.STRING.listOf().fieldOf("unknown_uuid_trial_sequence").forGetter(BootstrapConfig::unknownUUIDMatchSequence)
@@ -67,6 +70,16 @@ public record ServerConfig(BootstrapConfig bootstrapConfig, MutableConfig mutabl
                             MSecNetwork.PLAYER_NAME_COMPONENT_CODEC.fieldOf("suffix").forGetter(MojangAuthSourceConfig::suffix),
                             MSecNetwork.PLAYER_NAME_COMPONENT_SET_CODEC.fieldOf("former_suffixes").forGetter(MojangAuthSourceConfig::formerSuffixes)
                     ).apply(instance, MojangAuthSourceConfig::new)
+            );
+        }
+
+        public record OfflineAuthSourceConfig(boolean enabled, String suffix, Set<String> formerSuffixes) {
+            public static final Codec<OfflineAuthSourceConfig> CODEC = RecordCodecBuilder.create(
+                    instance -> instance.group(
+                            Codec.BOOL.fieldOf("enabled").forGetter(OfflineAuthSourceConfig::enabled),
+                            MSecNetwork.PLAYER_NAME_COMPONENT_CODEC.fieldOf("suffix").forGetter(OfflineAuthSourceConfig::suffix),
+                            MSecNetwork.PLAYER_NAME_COMPONENT_SET_CODEC.fieldOf("former_suffixes").forGetter(OfflineAuthSourceConfig::formerSuffixes)
+                    ).apply(instance, OfflineAuthSourceConfig::new)
             );
         }
 

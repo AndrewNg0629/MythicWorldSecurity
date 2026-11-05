@@ -10,6 +10,9 @@ import top.aenp.msec.MythicWorldSecurity;
 import top.aenp.msec.Utils;
 import top.aenp.msec.config.ServerConfigManager;
 import top.aenp.msec.network.MSecNetwork;
+import top.aenp.msec.offline.OfflinePlayerDB;
+import top.aenp.msec.offline.OfflinePlayerDataEntry;
+import top.aenp.msec.offline.OfflineUtils;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -18,7 +21,10 @@ import java.net.URISyntaxException;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
-import java.util.*;
+import java.util.HashMap;
+import java.util.Locale;
+import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
 
@@ -111,13 +117,32 @@ public class ServerMSecMinecraftSessionService extends AbstractMSecMinecraftSess
 
     private ProfileResult fetchProfileAndSuffix(String apiConfigName, UUID requestUUID) {
         String suffixExemptedName = ServerConfigManager.getInstance().getSuffixExemptedSourceName();
+        AuthSourceSuffixInfo suffixInfo = null;
         apiConfigName = apiConfigName.toLowerCase(Locale.ROOT);
         if (apiConfigName.equals("offline")) {
-            //TODO Add offline system support.
-            return null;
+            if (!suffixExemptedName.equals("offline")) {
+                suffixInfo = ServerConfigManager.getInstance().getOfflineSuffixInfo();
+            }
+            OfflinePlayerDB database = OfflinePlayerDB.getInstance();
+            try {
+                database.lock.readLock().lock();
+                for (OfflinePlayerDataEntry dataEntry : database.inMemoryDB.values()) {
+                    if (dataEntry.uuid().equals(requestUUID)) {
+                        String playerName = dataEntry.playerName();
+                        if (suffixInfo != null) {
+                            playerName = playerName + suffixInfo.primarySuffix();
+                        }
+                        UUID uuid = dataEntry.uuid();
+                        GameProfile gameProfile = OfflineUtils.constructOfflineProfile(playerName, uuid, dataEntry.skinHash(), dataEntry.skinModelType(), dataEntry.capeHash());
+                        return new ProfileResult(gameProfile);
+                    }
+                }
+                return null;
+            } finally {
+                database.lock.readLock().unlock();
+            }
         } else {
             String sessionHost;
-            AuthSourceSuffixInfo suffixInfo = null;
             if (apiConfigName.equalsIgnoreCase("mojang")) {
                 sessionHost = Utils.MOJANG_SESSION_SERVER + "/session/minecraft";
                 if (!suffixExemptedName.equals("mojang")) {

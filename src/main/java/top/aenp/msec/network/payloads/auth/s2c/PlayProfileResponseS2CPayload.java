@@ -28,7 +28,7 @@ public record PlayProfileResponseS2CPayload(UUID uuid, ProfileResult profileResu
                 GameProfile gameProfile = PacketCodecs.GAME_PROFILE.decode(buf);
                 int profileActionsCount = buf.readInt();
                 HashSet<ProfileActionType> profileActions = new HashSet<>();
-                for (int i = 0; i< profileActionsCount; i++) {
+                for (int i = 0; i < profileActionsCount; i++) {
                     ProfileActionType profileAction = buf.readEnumConstant(ProfileActionType.class);
                     profileActions.add(profileAction);
                 }
