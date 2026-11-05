@@ -99,7 +99,7 @@ public class ServerMSecGameProfileRepository implements GameProfileRepository {
         Map<String, Map<String, List<String>>> resultMap = new HashMap<>();
         nameLoop: for (String parameterName : parameterNames) {
             for (String suffix : ServerConfigManager.getInstance().getMojangSuffixInfo().allPossibleSuffixes()) {
-                if (parameterName.endsWith(suffix)) {
+                if (parameterName.toLowerCase(Locale.ROOT).endsWith(suffix.toLowerCase(Locale.ROOT))) {
                     Map<String, List<String>> parameterNameMap = resultMap.computeIfAbsent("mojang", name -> new HashMap<>());
                     String strippedName = parameterName.substring(0, parameterName.length() - suffix.length());
                     List<String> targetParameterNames = parameterNameMap.computeIfAbsent(strippedName, name -> new LinkedList<>());
@@ -110,7 +110,7 @@ public class ServerMSecGameProfileRepository implements GameProfileRepository {
             //TODO Offline.
             for (Map.Entry<YggdrasilApiMetadata, AuthSourceSuffixInfo> suffixInfoEntry : ServerConfigManager.getInstance().getYggdrasilSuffixInfoMap().entrySet()) {
                 for (String suffix : suffixInfoEntry.getValue().allPossibleSuffixes()) {
-                    if (parameterName.endsWith(suffix)) {
+                    if (parameterName.toLowerCase(Locale.ROOT).endsWith(suffix.toLowerCase(Locale.ROOT))) {
                         String authSourceName = ServerConfigManager.getInstance().getYggdrasilConfigNameMap().get(suffixInfoEntry.getKey());
                         Map<String, List<String>> parameterNameMap = resultMap.computeIfAbsent(authSourceName, name -> new HashMap<>());
                         String strippedName = parameterName.substring(0, parameterName.length() - suffix.length());
@@ -200,7 +200,7 @@ public class ServerMSecGameProfileRepository implements GameProfileRepository {
                             if (profileByNameCache.size() >= 1000) {
                                 profileByNameCache.entrySet().removeIf(mapEntry -> mapEntry.getValue().cachedOn + 1000L * CACHE_EXPIRE_TIME < System.currentTimeMillis());
                             }
-                            profileByNameCache.put(parameterName, cacheEntry);
+                            profileByNameCache.put(parameterName.toLowerCase(Locale.ROOT), cacheEntry);
                             resultMap.put(parameterName, new ProfileQueryResultEntry(rewrittenProfile, false));
                         } else {
                             resultMap.put(parameterName, new ProfileQueryResultEntry(null, true));
